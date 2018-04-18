@@ -80,7 +80,7 @@ class Model(object):
 											initializer = tf.random_normal_initializer())
 				att_sim_w = tf.tile(tf.expand_dims(att_sim_w, axis=0), [batch_size, 1, 1]) # [batch, dim, hidden]
 				trip_mult_w = tf.matmul(trip_emb, att_sim_w) # [batch, 3, hidden]
-				#trip_mult_w = tf.layers.dense(trip_emb, hidden, use_bias=False) # [batch, 3, hidden]
+				# trip_mult_w = tf.layers.dense(trip_emb, hidden, use_bias=False) # [batch, 3, hidden]
 				query = tf.expand_dims(query, axis=2)  # [batch, hidden, 1]
 				trip_mult_w_mult_query = tf.matmul(trip_mult_w, query) # [batch, 3, 1]
 				trip_mult_w_mult_query = tf.reshape(trip_mult_w_mult_query, [-1, 3]) # [batch, 3]
@@ -163,6 +163,29 @@ class Model(object):
 		self.out = [loss, train_op, out_idx]
 		self.out_valid = [loss, out_idx]
 		return
+
+
+	def decode(self, sess, test_dset):
+		test_dset.current_index = 0
+		num_batch = int(test_dset.datasize / self.batch) + 1
+		out_idx = []
+		bleu = 0.0
+		for bi in tqdm(range(num_batch)):
+			triples, questions, qlen = test_dset.get_mini_batch(self.batch)
+			feed_dict = {}
+			feed_dict[self.triple] = triples
+			feed_dict[self.question] = questions
+			feed_dict[self.qlen] = qlen
+			feed_dict[self.keep_prob] = 1.0
+			out_idx_cur = sess.run(self.out, feed_dict=feed_dict)
+			out_idx_cur = np.array(out_idx_cur, dtype=np.int32)
+			out_idx_lst = [list(x) for x in out_idx_cur]
+			out_idx += out_idx_lst
+			for i in range(len(questions)):
+				bleu += bleu_val(questions[i], out_idx_cur[i])
+		bleu /= test_dset.datasize
+		logging.info('bleu = %f' % bleu)
+		return out_idx
 
 
 	def decode_test_model(self, sess, test_dset, niter, saver):
@@ -266,7 +289,7 @@ if __name__ == '__main__':
 	flags.DEFINE_integer('kb_emb_dim', 100, "")
 	flags.DEFINE_integer('maxlen', 35, "")
 	flags.DEFINE_integer('batch', 128, "")
-	flags.DEFINE_integer('epoch_num', 50, "")
+	flags.DEFINE_integer('epoch_num', 200, "")
 	flags.DEFINE_boolean('is_train', True, "")
 	flags.DEFINE_float('max_grad_norm', 0.1, "")
 	flags.DEFINE_float('lr', 0.00025, "")

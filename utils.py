@@ -10,7 +10,7 @@ def pad_sequence(seq, maxlen):
 	return seq + [0]*pad_len
 
 class Dataset(object):
-	def __init__(self, filename):
+	def __init__(self, filename, max_cnt = None):
 		with open('./dicts/word2id.pickle', 'rb') as f:
 			word2id = pickle.load(f)
 		with open('./dicts/kb2id.pickle', 'rb') as f:
@@ -51,6 +51,8 @@ class Dataset(object):
 				maxlen = len(words)
 		self.data = []
 		self.datasize = len(triples)
+		if max_cnt != None and max_cnt < self.datasize:
+			self.datasize = max_cnt
 		for i in range(self.datasize):
 			self.data.append((triples[i], pad_sequence(questions[i], 35), len(questions[i])))
 		self.maxlen = maxlen
