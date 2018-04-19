@@ -10,23 +10,23 @@ import os
 import math
 from model import Model
 
-def minitrain(config, train_file, valid_file, wordlist):
-	train_dset = Dataset(train_file, max_cnt=800)
-	train_output_dset = Dataset(train_file, max_cnt=100)
-	# valid_dset = Dataset(valid_file)
+def minitrain(config, train_file, valid_file, wordlist, kblist):
+	train_dset = Dataset(train_file)
+	# train_output_dset = Dataset(train_file, max_cnt=100)
+	valid_dset = Dataset(valid_file)
 	with tf.variable_scope('model'):
 		model = Model(config, word_emb_mat=wordemb, kb_emb_mat=kbemb)
-	# config.is_train = False
-	# with tf.variable_scope('model', reuse=True):
-	# 	mtest = Model(config, word_emb_mat=wordemb, kb_emb_mat=kbemb)
+	config.is_train = False
+	with tf.variable_scope('model', reuse=True):
+		mtest = Model(config, word_emb_mat=wordemb, kb_emb_mat=kbemb)
 
 	saver = tf.train.Saver()
 	tfconfig = tf.ConfigProto()
 	# tfconfig.gpu_options.allow_growth = True
 	sess = tf.Session(config=tfconfig)
-	writer = tf.summary.FileWriter('./graph', sess.graph)
+	# writer = tf.summary.FileWriter('./graph', sess.graph)
 	sess.run(tf.global_variables_initializer())
-	num_batch = int(train_dset.datasize / model.batch) + 1
+	num_batch = int(math.ceil(train_dset.datasize / model.batch))
 	for ei in range(model.epoch_num):
 		train_dset.current_index = 0
 		loss_iter = 0.0
@@ -41,12 +41,13 @@ def minitrain(config, train_file, valid_file, wordlist):
 			feed_dict[model.qlen] = qlen
 			feed_dict[model.keep_prob] = 0.9
 			loss, train_op, out_idx = sess.run(model.out, feed_dict=feed_dict)
-			writer.add_graph(sess.graph)
+			# writer.add_graph(sess.graph)
 			loss_iter += loss
 		loss_iter /= num_batch
 		logging.info('iter %d, train loss: %f' % (ei, loss_iter))
-		# model.valid_model(sess, valid_dset, ei, saver)
-		# mtest.decode_test_model(sess, train_output_dset, ei, wordlist)
+		if ei % 10 == 0:
+			model.valid_model(sess, valid_dset, ei, saver)
+			mtest.decode_test_model(sess, valid_dset, ei, wordlist, kblist, saver)
 
 if __name__ == '__main__':
 	os.environ["CUDA_VISIBLE_DEVICES"] = '0'
@@ -72,6 +73,11 @@ if __name__ == '__main__':
 	with open('./dicts/wordlist.json', 'r') as f:
 		wordlist = json.load(f)
 		wordlist = ['<EOS>', '<SOS>'] + wordlist
+	with open('./dicts/entlist.json', 'r') as f:
+		entlist = json.load(f)
+	with open('./dicts/rellist.json', 'r') as f:
+		rellist = json.load(f)
+	kblist = entlist + rellist
 	flags = tf.flags
 	flags.DEFINE_integer('hidden', 600, "")
 	flags.DEFINE_integer('word_vocab_size', len(word2id), "")
@@ -87,4 +93,4 @@ if __name__ == '__main__':
 	config = flags.FLAGS
 	train_file = './sq/annotated_fb_data_train.txt'
 	valid_file = './sq/annotated_fb_data_valid.txt'
-	minitrain(config, train_file, valid_file, wordlist)
+	minitrain(config, train_file, valid_file, wordlist, kblist)

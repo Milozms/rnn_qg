@@ -54,7 +54,8 @@ class Dataset(object):
 		if max_cnt != None and max_cnt < self.datasize:
 			self.datasize = max_cnt
 		for i in range(self.datasize):
-			self.data.append((triples[i], pad_sequence(questions[i], 35), len(questions[i])))
+			self.data.append((triples[i], pad_sequence(questions[i], 35), len(questions[i]) + 1))
+			# len + 1 because EOS
 		self.maxlen = maxlen
 		np.random.shuffle(self.data)
 		self.current_index = 0

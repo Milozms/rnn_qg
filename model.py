@@ -8,6 +8,7 @@ import numpy as np
 import json
 import os
 import math
+from tensorflow.contrib import crf
 
 def bleu_val(ques, out_idx):
 	ques = list(ques)
@@ -59,21 +60,16 @@ class Model(object):
 									dtype = tf.float32,
 									initializer = tf.constant(self.word_emb_mat, dtype=tf.float32),
 									trainable=False)
-				# kb_embeddings = tf.get_variable(name = "kb_embedding",
-				# 					dtype = tf.float32,
-				# 					initializer = tf.constant(self.kb_emb_mat, dtype=tf.float32),
-				# 					trainable=False)
 				kb_embeddings = tf.get_variable(name = "kb_embedding",
 									dtype = tf.float32,
-									initializer = tf.zeros_initializer(),
-									shape = [kb_vocab_size, kb_emb_dim],
-									trainable=True)
+									initializer = tf.constant(self.kb_emb_mat, dtype=tf.float32),
+									trainable=False)
 		
 		trip_emb = tf.nn.embedding_lookup(kb_embeddings, self.triple) # [batch, 3, dim]
 		ques_emb = tf.nn.embedding_lookup(word_embeddings, self.question)
 
 		with tf.variable_scope("encoder"):
-			#fact_embedding
+			# fact_embedding
 			fact_emb = tf.reshape(trip_emb, [-1, kb_emb_dim*3], name="fact_embedding")
 			fact = tf.layers.dense(fact_emb, hidden,
 								   kernel_initializer = tf.random_normal_initializer())
@@ -81,7 +77,7 @@ class Model(object):
 		# attention
 		def attention(query, step_i):
 			with tf.variable_scope("attention") as att_scope:
-				'''
+
 				if step_i != 0:
 					att_scope.reuse_variables()
 				att_sim_w = tf.get_variable('att_sim_w', shape=[kb_emb_dim, hidden],
@@ -99,8 +95,8 @@ class Model(object):
 				# trip_emb [batch, 3, dim]
 				att_o = tf.matmul(att_w, trip_emb) # [batch, 1, dim]
 				att_o = tf.squeeze(att_o, axis=1) # [batch, dim]
-				'''
-				att_o = tf.zeros(shape=[batch_size, kb_emb_dim], dtype=tf.float32)
+
+				# att_o = tf.zeros(shape=[batch_size, kb_emb_dim], dtype=tf.float32)
 			return att_o
 
 		decoder_cell = tf.nn.rnn_cell.GRUCell(num_units = hidden)
@@ -110,15 +106,17 @@ class Model(object):
 		out_idx = []
 		loss_steps = []
 		# pred_size = word_vocab_size + 1  #??????
-		label_steps = tf.one_hot(self.question, word_vocab_size)
-		label_steps = tf.unstack(label_steps, axis=1)
+		# label_steps = tf.one_hot(self.question, word_vocab_size)
+		label_steps = tf.unstack(self.question, axis=1)
 		# initial state
 		prev_hidden = fact
+		# prev_hidden = decoder_cell.zero_state(batch_size, dtype=tf.float32)
 		sos = tf.ones(shape=[batch_size], dtype=tf.int32)
 		sos_emb = tf.nn.embedding_lookup(word_embeddings, sos)
 		with tf.variable_scope("decoder") as decoder_scope:
 			outputs = []
 			for time_step in range(maxlen):
+				# maxlen + 1 for generate EOS
 				if time_step >= 1:
 					decoder_scope.reuse_variables()
 				if time_step == 0:
@@ -132,6 +130,7 @@ class Model(object):
 				att_o = attention(prev_hidden, time_step)
 				# concat attention (prev hidden) and current input
 				cell_in = tf.concat([cur_in, att_o], 1)
+				# cell_in = cur_in
 				cur_out, cur_hidden = decoder_cell(cell_in, prev_hidden) # [batch, hidden]
 				prev_hidden = cur_hidden
 				# prev_out = cur_out
@@ -142,16 +141,18 @@ class Model(object):
 				output_b = tf.get_variable('output_b', shape=[word_vocab_size],
 										   initializer=tf.random_normal_initializer())
 				output = tf.matmul(cur_out, output_w) + output_b # [batch, pred_size]
-				output = tf.nn.softmax(output, dim=1)
-				outputs.append(output)
-				prev_out = tf.matmul(output, word_embeddings) # [batch, word_emb_dim]
+				output_softmax = tf.nn.softmax(output, dim=1)
+				outputs.append(output_softmax)
 
 				if self.is_train:
 					labels = label_steps[time_step]
-					loss_steps.append(tf.nn.softmax_cross_entropy_with_logits(labels = labels, logits = output))
+					loss_steps.append(tf.nn.sparse_softmax_cross_entropy_with_logits(labels = labels, logits = output))
 
-				out_index = tf.argmax(output, 1)
+				out_index = tf.argmax(output, 1) # [batch, vocab_size]
 				out_idx.append(out_index)
+				# input for next cell
+				# prev_out = tf.matmul(output_softmax, word_embeddings)  # [batch, word_emb_dim]
+				prev_out = tf.nn.embedding_lookup(word_embeddings, out_index) # [batch, word_emb_dim]
 
 		out_idx = tf.transpose(tf.stack(out_idx)) # [batch_size, timesteps]
 
@@ -198,13 +199,14 @@ class Model(object):
 		return out_idx
 
 
-	def decode_test_model(self, sess, test_dset, niter, wordlist):
+	def decode_test_model(self, sess, test_dset, niter, wordlist, kblist, saver):
 		test_dset.current_index = 0
 		num_batch = int(math.ceil(test_dset.datasize / self.batch))
 		out_idx = []
+		triples_idx = []
 		bleu = 0.0
 		for bi in tqdm(range(num_batch)):
-			mini_batch = test_dset.get_mini_batch(model.batch)
+			mini_batch = test_dset.get_mini_batch(self.batch)
 			if mini_batch == None:
 				break
 			triples, questions, qlen = mini_batch
@@ -217,19 +219,24 @@ class Model(object):
 			out_idx_cur = np.array(out_idx_cur, dtype=np.int32)
 			out_idx_lst = [list(x) for x in out_idx_cur]
 			out_idx += out_idx_lst
+			triples_idx += triples
 			for i in range(len(questions)):
 				bleu += bleu_val(questions[i], out_idx_cur[i])
 		bleu /= test_dset.datasize
 		logging.info('iter %d, bleu = %f' % (niter, bleu))
 		if bleu > self.maxbleu:
 			self.maxbleu = bleu
+			saver.save(sess, './savemodel/model' + str(niter) + '.pkl')
 		with open('./output/output' + str(niter) + '.txt', 'w') as f:
-			for s in out_idx:
+			for i, s in enumerate(out_idx):
 				words = []
 				for w in s:
+					if w == 0:
+						break
 					words.append(wordlist[w])
 				sentence = ' '.join(words)
-				f.write(sentence+'\n')
+				triples_name = [kblist[x] for x in triples_idx]
+				f.write(str(triples_name[i])+'\t'+sentence+'\n')
 
 
 	def valid_model(self, sess, valid_dset, niter, saver):
@@ -238,7 +245,7 @@ class Model(object):
 		out_idx = []
 		loss_iter = 0.0
 		for bi in tqdm(range(num_batch)):
-			mini_batch = valid_dset.get_mini_batch(model.batch)
+			mini_batch = valid_dset.get_mini_batch(self.batch)
 			if mini_batch == None:
 				break
 			triples, questions, qlen = mini_batch
@@ -267,7 +274,7 @@ class Model(object):
 			dset.current_index = 0
 			loss_iter = 0.0
 			for bi in tqdm(range(num_batch)):
-				mini_batch = train_dset.get_mini_batch(model.batch)
+				mini_batch = train_dset.get_mini_batch(self.batch)
 				if mini_batch == None:
 					break
 				triples, questions, qlen = mini_batch
