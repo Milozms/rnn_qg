@@ -7,6 +7,7 @@ import pickle
 import numpy as np
 import json
 import os
+import math
 
 def bleu_val(ques, out_idx):
 	ques = list(ques)
@@ -43,6 +44,7 @@ class Model(object):
 		self.qlen = tf.placeholder(dtype = tf.int32, shape = [None], name = 'question_len')
 		self.keep_prob = tf.placeholder(dtype = tf.float32, shape = ())
 		batch_size = tf.shape(self.triple)[0]
+		# batch_size = self.triple.shape[0].value
 
 		hidden = self.hidden
 		word_vocab_size = self.word_vocab_size
@@ -57,10 +59,15 @@ class Model(object):
 									dtype = tf.float32,
 									initializer = tf.constant(self.word_emb_mat, dtype=tf.float32),
 									trainable=False)
+				# kb_embeddings = tf.get_variable(name = "kb_embedding",
+				# 					dtype = tf.float32,
+				# 					initializer = tf.constant(self.kb_emb_mat, dtype=tf.float32),
+				# 					trainable=False)
 				kb_embeddings = tf.get_variable(name = "kb_embedding",
-									dtype = tf.float32, 
-									initializer = tf.constant(self.kb_emb_mat, dtype=tf.float32),
-									trainable=False)
+									dtype = tf.float32,
+									initializer = tf.zeros_initializer(),
+									shape = [kb_vocab_size, kb_emb_dim],
+									trainable=True)
 		
 		trip_emb = tf.nn.embedding_lookup(kb_embeddings, self.triple) # [batch, 3, dim]
 		ques_emb = tf.nn.embedding_lookup(word_embeddings, self.question)
@@ -74,6 +81,7 @@ class Model(object):
 		# attention
 		def attention(query, step_i):
 			with tf.variable_scope("attention") as att_scope:
+				'''
 				if step_i != 0:
 					att_scope.reuse_variables()
 				att_sim_w = tf.get_variable('att_sim_w', shape=[kb_emb_dim, hidden],
@@ -91,6 +99,8 @@ class Model(object):
 				# trip_emb [batch, 3, dim]
 				att_o = tf.matmul(att_w, trip_emb) # [batch, 1, dim]
 				att_o = tf.squeeze(att_o, axis=1) # [batch, dim]
+				'''
+				att_o = tf.zeros(shape=[batch_size, kb_emb_dim], dtype=tf.float32)
 			return att_o
 
 		decoder_cell = tf.nn.rnn_cell.GRUCell(num_units = hidden)
@@ -167,7 +177,7 @@ class Model(object):
 
 	def decode(self, sess, test_dset):
 		test_dset.current_index = 0
-		num_batch = int(test_dset.datasize / self.batch) + 1
+		num_batch = int(math.ceil(test_dset.datasize / self.batch))
 		out_idx = []
 		bleu = 0.0
 		for bi in tqdm(range(num_batch)):
@@ -188,19 +198,22 @@ class Model(object):
 		return out_idx
 
 
-	def decode_test_model(self, sess, test_dset, niter, saver):
+	def decode_test_model(self, sess, test_dset, niter, wordlist):
 		test_dset.current_index = 0
-		num_batch = int(test_dset.datasize / self.batch) + 1
+		num_batch = int(math.ceil(test_dset.datasize / self.batch))
 		out_idx = []
 		bleu = 0.0
 		for bi in tqdm(range(num_batch)):
-			triples, questions, qlen = test_dset.get_mini_batch(self.batch)
+			mini_batch = test_dset.get_mini_batch(model.batch)
+			if mini_batch == None:
+				break
+			triples, questions, qlen = mini_batch
 			feed_dict = {}
 			feed_dict[self.triple] = triples
 			feed_dict[self.question] = questions
 			feed_dict[self.qlen] = qlen
 			feed_dict[self.keep_prob] = 1.0
-			loss, out_idx_cur = sess.run(self.out_valid, feed_dict=feed_dict)
+			out_idx_cur = sess.run(self.out, feed_dict=feed_dict)
 			out_idx_cur = np.array(out_idx_cur, dtype=np.int32)
 			out_idx_lst = [list(x) for x in out_idx_cur]
 			out_idx += out_idx_lst
@@ -210,17 +223,25 @@ class Model(object):
 		logging.info('iter %d, bleu = %f' % (niter, bleu))
 		if bleu > self.maxbleu:
 			self.maxbleu = bleu
-			saver.save(sess, './savemodel/model0.pkl')
-			with open('./output/out_idx.json', 'wb') as f:
-				pickle.dump(out_idx, f)
+		with open('./output/output' + str(niter) + '.txt', 'w') as f:
+			for s in out_idx:
+				words = []
+				for w in s:
+					words.append(wordlist[w])
+				sentence = ' '.join(words)
+				f.write(sentence+'\n')
+
 
 	def valid_model(self, sess, valid_dset, niter, saver):
 		valid_dset.current_index = 0
-		num_batch = int(valid_dset.datasize / self.batch) + 1
+		num_batch = int(math.ceil(valid_dset.datasize / self.batch))
 		out_idx = []
 		loss_iter = 0.0
 		for bi in tqdm(range(num_batch)):
-			triples, questions, qlen = valid_dset.get_mini_batch(self.batch)
+			mini_batch = valid_dset.get_mini_batch(model.batch)
+			if mini_batch == None:
+				break
+			triples, questions, qlen = mini_batch
 			feed_dict = {}
 			feed_dict[self.triple] = triples
 			feed_dict[self.question] = questions
@@ -241,12 +262,15 @@ class Model(object):
 		# tfconfig.gpu_options.allow_growth = True
 		sess = tf.Session(config=tfconfig)
 		sess.run(tf.global_variables_initializer())
-		num_batch = int(train_dset.datasize / self.batch) + 1
+		num_batch = int(dset.datasize / self.batch) + 1
 		for ei in range(self.epoch_num):
 			dset.current_index = 0
 			loss_iter = 0.0
 			for bi in tqdm(range(num_batch)):
-				triples, questions, qlen = dset.get_mini_batch(self.batch)
+				mini_batch = train_dset.get_mini_batch(model.batch)
+				if mini_batch == None:
+					break
+				triples, questions, qlen = mini_batch
 				feed_dict = {}
 				feed_dict[self.triple] = triples
 				feed_dict[self.question] = questions

@@ -1,1 +1,0 @@
-2018-04-17 19:57:35,930 - tf_logging.py[line:82] - INFO: Restoring parameters from ./savemodel/model46.pkl
