@@ -10,7 +10,7 @@ def pad_sequence(seq, maxlen):
 	return seq + [0]*pad_len
 
 class Dataset(object):
-	def __init__(self, filename, max_cnt = None):
+	def __init__(self, filename, max_cnt = None, shuffle = True):
 		with open('./dicts/word2id.pickle', 'rb') as f:
 			word2id = pickle.load(f)
 		with open('./dicts/kb2id.pickle', 'rb') as f:
@@ -57,7 +57,8 @@ class Dataset(object):
 			self.data.append((triples[i], pad_sequence(questions[i], 35), len(questions[i]) + 1))
 			# len + 1 because EOS
 		self.maxlen = maxlen
-		np.random.shuffle(self.data)
+		if shuffle:
+			np.random.shuffle(self.data)
 		self.current_index = 0
 
 	def get_mini_batch(self, batch_size):

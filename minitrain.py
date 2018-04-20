@@ -12,8 +12,7 @@ from model import Model
 
 def minitrain(config, train_file, valid_file, wordlist, kblist):
 	train_dset = Dataset(train_file)
-	# train_output_dset = Dataset(train_file, max_cnt=100)
-	valid_dset = Dataset(valid_file)
+	valid_dset = Dataset(valid_file, shuffle=False)
 	with tf.variable_scope('model'):
 		model = Model(config, word_emb_mat=wordemb, kb_emb_mat=kbemb)
 	config.is_train = False
@@ -39,14 +38,14 @@ def minitrain(config, train_file, valid_file, wordlist, kblist):
 			feed_dict[model.triple] = triples
 			feed_dict[model.question] = questions
 			feed_dict[model.qlen] = qlen
-			feed_dict[model.keep_prob] = 0.9
+			feed_dict[model.keep_prob] = 1.0
 			loss, train_op, out_idx = sess.run(model.out, feed_dict=feed_dict)
 			# writer.add_graph(sess.graph)
 			loss_iter += loss
 		loss_iter /= num_batch
 		logging.info('iter %d, train loss: %f' % (ei, loss_iter))
-		if ei % 10 == 0:
-			model.valid_model(sess, valid_dset, ei, saver)
+		model.valid_model(sess, valid_dset, ei, saver)
+		if ei % 5 == 0:
 			mtest.decode_test_model(sess, valid_dset, ei, wordlist, kblist, saver)
 
 if __name__ == '__main__':
@@ -86,7 +85,7 @@ if __name__ == '__main__':
 	flags.DEFINE_integer('kb_emb_dim', 100, "")
 	flags.DEFINE_integer('maxlen', 35, "")
 	flags.DEFINE_integer('batch', 100, "")
-	flags.DEFINE_integer('epoch_num', 200, "")
+	flags.DEFINE_integer('epoch_num', 30, "")
 	flags.DEFINE_boolean('is_train', True, "")
 	flags.DEFINE_float('max_grad_norm', 0.1, "")
 	flags.DEFINE_float('lr', 0.00025, "")

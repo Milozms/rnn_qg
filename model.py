@@ -10,15 +10,22 @@ import os
 import math
 from tensorflow.contrib import crf
 
-def bleu_val(ques, out_idx):
+def bleu_val(ques, out_idx, type):
 	ques = list(ques)
 	out_idx = list(out_idx)
-	while ques[-1] == 0:
-		ques.pop()
-	while out_idx[-1] == 0:
-		out_idx.pop()
+	q_eos = ques.index(0)
+	ques = ques[:q_eos]
+	if 0 in out_idx:
+		o_eos = out_idx.index(0)
+		out_idx = out_idx[:o_eos]
 	sf = nltk.translate.bleu_score.SmoothingFunction()
-	return nltk.translate.bleu(references=[ques], hypothesis=out_idx, smoothing_function=sf.method1)
+	if type == 1:
+		weight = (1, 0, 0, 0)
+	elif type == 4:
+		weight = (0, 0, 0, 1)
+	else:
+		weight = (0.25, 0.25, 0.25, 0.25)
+	return nltk.translate.bleu(references=[ques], hypothesis=out_idx, smoothing_function=sf.method1, weights=weight)
 
 class Model(object):
 	def __init__(self, config, kb_emb_mat, word_emb_mat):
@@ -35,7 +42,8 @@ class Model(object):
 		self.epoch_num = config.epoch_num
 		self.max_grad_norm = config.max_grad_norm
 		self.lr = config.lr
-		self.maxbleu = 0.0
+		self.maxbleu1 = 0.0
+		self.maxbleu4 = 0.0
 		self.minloss = 100
 		self.build()
 								   
@@ -100,7 +108,7 @@ class Model(object):
 			return att_o
 
 		decoder_cell = tf.nn.rnn_cell.GRUCell(num_units = hidden)
-		decoder_cell = tf.nn.rnn_cell.DropoutWrapper(decoder_cell, output_keep_prob=self.keep_prob)
+		# decoder_cell = tf.nn.rnn_cell.DropoutWrapper(decoder_cell, output_keep_prob=self.keep_prob)
 		dec_ques = tf.unstack(ques_emb, axis=1)
 		prev_out = None
 		out_idx = []
@@ -193,7 +201,7 @@ class Model(object):
 			out_idx_lst = [list(x) for x in out_idx_cur]
 			out_idx += out_idx_lst
 			for i in range(len(questions)):
-				bleu += bleu_val(questions[i], out_idx_cur[i])
+				bleu += bleu_val(questions[i], out_idx_cur[i], 1)
 		bleu /= test_dset.datasize
 		logging.info('bleu = %f' % bleu)
 		return out_idx
@@ -204,7 +212,8 @@ class Model(object):
 		num_batch = int(math.ceil(test_dset.datasize / self.batch))
 		out_idx = []
 		triples_idx = []
-		bleu = 0.0
+		bleu1 = 0.0
+		bleu4 = 0.0
 		for bi in tqdm(range(num_batch)):
 			mini_batch = test_dset.get_mini_batch(self.batch)
 			if mini_batch == None:
@@ -221,11 +230,16 @@ class Model(object):
 			out_idx += out_idx_lst
 			triples_idx += triples
 			for i in range(len(questions)):
-				bleu += bleu_val(questions[i], out_idx_cur[i])
-		bleu /= test_dset.datasize
-		logging.info('iter %d, bleu = %f' % (niter, bleu))
-		if bleu > self.maxbleu:
-			self.maxbleu = bleu
+				bleu1 += bleu_val(questions[i], out_idx_cur[i], 1)
+				bleu4 += bleu_val(questions[i], out_idx_cur[i], 4)
+		bleu1 /= test_dset.datasize
+		bleu4 /= test_dset.datasize
+		logging.info('iter %d, bleu1 = %f, bleu4 = %f' % (niter, bleu1, bleu4))
+		if bleu1 > self.maxbleu1:
+			self.maxbleu1 = bleu1
+			saver.save(sess, './savemodel/model' + str(niter) + '.pkl')
+		if bleu4 > self.maxbleu4:
+			self.maxbleu4 = bleu4
 			saver.save(sess, './savemodel/model' + str(niter) + '.pkl')
 		with open('./output/output' + str(niter) + '.txt', 'w') as f:
 			for i, s in enumerate(out_idx):
@@ -235,8 +249,8 @@ class Model(object):
 						break
 					words.append(wordlist[w])
 				sentence = ' '.join(words)
-				triples_name = [kblist[x] for x in triples_idx]
-				f.write(str(triples_name[i])+'\t'+sentence+'\n')
+				triples_name = [kblist[x] for x in triples_idx[i]]
+				f.write(str(triples_name)+'\t'+sentence+'\n')
 
 
 	def valid_model(self, sess, valid_dset, niter, saver):
@@ -282,7 +296,7 @@ class Model(object):
 				feed_dict[self.triple] = triples
 				feed_dict[self.question] = questions
 				feed_dict[self.qlen] = qlen
-				feed_dict[self.keep_prob] = 0.9
+				feed_dict[self.keep_prob] = 1.0
 				loss, train_op, out_idx = sess.run(self.out, feed_dict=feed_dict)
 				loss_iter += loss
 			loss_iter /= num_batch
