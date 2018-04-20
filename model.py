@@ -183,30 +183,6 @@ class Model(object):
 		self.out_valid = [loss, out_idx]
 		return
 
-
-	def decode(self, sess, test_dset):
-		test_dset.current_index = 0
-		num_batch = int(math.ceil(test_dset.datasize / self.batch))
-		out_idx = []
-		bleu = 0.0
-		for bi in tqdm(range(num_batch)):
-			triples, questions, qlen = test_dset.get_mini_batch(self.batch)
-			feed_dict = {}
-			feed_dict[self.triple] = triples
-			feed_dict[self.question] = questions
-			feed_dict[self.qlen] = qlen
-			feed_dict[self.keep_prob] = 1.0
-			out_idx_cur = sess.run(self.out, feed_dict=feed_dict)
-			out_idx_cur = np.array(out_idx_cur, dtype=np.int32)
-			out_idx_lst = [list(x) for x in out_idx_cur]
-			out_idx += out_idx_lst
-			for i in range(len(questions)):
-				bleu += bleu_val(questions[i], out_idx_cur[i], 1)
-		bleu /= test_dset.datasize
-		logging.info('bleu = %f' % bleu)
-		return out_idx
-
-
 	def decode_test_model(self, sess, test_dset, niter, wordlist, kblist, saver):
 		test_dset.current_index = 0
 		num_batch = int(math.ceil(test_dset.datasize / self.batch))
