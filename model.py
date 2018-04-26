@@ -46,7 +46,32 @@ class Model(object):
 		self.maxbleu4 = 0.0
 		self.minloss = 100
 		self.build()
-								   
+
+	def attention(self, query, step_i):
+		batch_size = tf.shape(self.triple)[0]
+		with tf.variable_scope("attention") as att_scope:
+			if step_i != 0:
+				att_scope.reuse_variables()
+			att_sim_w = tf.get_variable('att_sim_w', shape=[self.kb_emb_dim, self.hidden],
+										initializer=tf.random_normal_initializer())
+			att_sim_w = tf.tile(tf.expand_dims(att_sim_w, axis=0), [batch_size, 1, 1])  # [batch, dim, hidden]
+			trip_mult_w = tf.matmul(self.trip_emb, att_sim_w)  # [batch, 3, hidden]
+			# trip_mult_w = tf.layers.dense(trip_emb, hidden, use_bias=False) # [batch, 3, hidden]
+			query = tf.expand_dims(query, axis=2)  # [batch, hidden, 1]
+			trip_mult_w_mult_query = tf.matmul(trip_mult_w, query)  # [batch, 3, 1]
+			trip_mult_w_mult_query = tf.reshape(trip_mult_w_mult_query, [-1, 3])  # [batch, 3]
+			actived = tf.tanh(trip_mult_w_mult_query)
+			# attention weight
+			logits = tf.nn.softmax(actived, dim=1)  # [batch, 3]
+			att_w = tf.expand_dims(logits, axis=1)  # [batch, 1, 3]
+			# trip_emb [batch, 3, dim]
+			att_o = tf.matmul(att_w, self.trip_emb)  # [batch, 1, dim]
+			att_o = tf.squeeze(att_o, axis=1)  # [batch, dim]
+
+		# att_o = tf.zeros(shape=[batch_size, kb_emb_dim], dtype=tf.float32)
+		return att_o
+
+
 	def build(self):
 		self.triple = tf.placeholder(dtype = tf.int32, shape = [None, 3], name = 'triple')
 		self.question = tf.placeholder(dtype = tf.int32, shape = [None, self.maxlen], name = 'question')
@@ -64,7 +89,7 @@ class Model(object):
 
 		with tf.device("/cpu:0"):
 			with tf.variable_scope("embeddings"):
-				word_embeddings = tf.get_variable(name = "word_embedding",
+				self.word_embeddings = tf.get_variable(name = "word_embedding",
 									dtype = tf.float32,
 									initializer = tf.constant(self.word_emb_mat, dtype=tf.float32),
 									trainable=False)
@@ -73,17 +98,17 @@ class Model(object):
 									initializer = tf.constant(self.kb_emb_mat, dtype=tf.float32),
 									trainable=False)
 		
-		trip_emb = tf.nn.embedding_lookup(kb_embeddings, self.triple) # [batch, 3, dim]
-		ques_emb = tf.nn.embedding_lookup(word_embeddings, self.question)
+		self.trip_emb = tf.nn.embedding_lookup(kb_embeddings, self.triple) # [batch, 3, dim]
+		ques_emb = tf.nn.embedding_lookup(self.word_embeddings, self.question)
 
 		with tf.variable_scope("encoder"):
 			# fact_embedding
-			fact_emb = tf.reshape(trip_emb, [-1, kb_emb_dim*3], name="fact_embedding")
-			fact = tf.layers.dense(fact_emb, hidden,
+			fact_emb = tf.reshape(self.trip_emb, [-1, kb_emb_dim*3], name="fact_embedding")
+			self.fact = tf.layers.dense(fact_emb, hidden,
 								   kernel_initializer = tf.random_normal_initializer())
 
 		# attention
-		def attention(query, step_i):
+		def attention_(query, step_i):
 			with tf.variable_scope("attention") as att_scope:
 
 				if step_i != 0:
@@ -91,7 +116,7 @@ class Model(object):
 				att_sim_w = tf.get_variable('att_sim_w', shape=[kb_emb_dim, hidden],
 											initializer = tf.random_normal_initializer())
 				att_sim_w = tf.tile(tf.expand_dims(att_sim_w, axis=0), [batch_size, 1, 1]) # [batch, dim, hidden]
-				trip_mult_w = tf.matmul(trip_emb, att_sim_w) # [batch, 3, hidden]
+				trip_mult_w = tf.matmul(self.trip_emb, att_sim_w) # [batch, 3, hidden]
 				# trip_mult_w = tf.layers.dense(trip_emb, hidden, use_bias=False) # [batch, 3, hidden]
 				query = tf.expand_dims(query, axis=2)  # [batch, hidden, 1]
 				trip_mult_w_mult_query = tf.matmul(trip_mult_w, query) # [batch, 3, 1]
@@ -101,14 +126,14 @@ class Model(object):
 				logits = tf.nn.softmax(actived, dim=1) # [batch, 3]
 				att_w = tf.expand_dims(logits, axis=1) # [batch, 1, 3]
 				# trip_emb [batch, 3, dim]
-				att_o = tf.matmul(att_w, trip_emb) # [batch, 1, dim]
+				att_o = tf.matmul(att_w, self.trip_emb) # [batch, 1, dim]
 				att_o = tf.squeeze(att_o, axis=1) # [batch, dim]
 
 				# att_o = tf.zeros(shape=[batch_size, kb_emb_dim], dtype=tf.float32)
 			return att_o
 
-		decoder_cell = tf.nn.rnn_cell.GRUCell(num_units = hidden)
-		# decoder_cell = tf.nn.rnn_cell.DropoutWrapper(decoder_cell, output_keep_prob=self.keep_prob)
+		self.decoder_cell = tf.nn.rnn_cell.GRUCell(num_units = hidden)
+		# self.decoder_cell = tf.nn.rnn_cell.DropoutWrapper(decoder_cell, output_keep_prob=self.keep_prob)
 		dec_ques = tf.unstack(ques_emb, axis=1)
 		prev_out = None
 		out_idx = []
@@ -117,14 +142,13 @@ class Model(object):
 		# label_steps = tf.one_hot(self.question, word_vocab_size)
 		label_steps = tf.unstack(self.question, axis=1)
 		# initial state
-		prev_hidden = fact
+		prev_hidden = self.fact
 		# prev_hidden = decoder_cell.zero_state(batch_size, dtype=tf.float32)
 		sos = tf.ones(shape=[batch_size], dtype=tf.int32)
-		sos_emb = tf.nn.embedding_lookup(word_embeddings, sos)
+		sos_emb = tf.nn.embedding_lookup(self.word_embeddings, sos)
 		with tf.variable_scope("decoder") as decoder_scope:
 			outputs = []
 			for time_step in range(maxlen):
-				# maxlen + 1 for generate EOS
 				if time_step >= 1:
 					decoder_scope.reuse_variables()
 				if time_step == 0:
@@ -135,13 +159,12 @@ class Model(object):
 					else:
 						cur_in = prev_out # [batch, word_dim]
 				# attention
-				att_o = attention(prev_hidden, time_step)
+				att_o = attention_(prev_hidden, time_step)
 				# concat attention (prev hidden) and current input
 				cell_in = tf.concat([cur_in, att_o], 1)
 				# cell_in = cur_in
-				cur_out, cur_hidden = decoder_cell(cell_in, prev_hidden) # [batch, hidden]
+				cur_out, cur_hidden = self.decoder_cell(cell_in, prev_hidden) # [batch, hidden]
 				prev_hidden = cur_hidden
-				# prev_out = cur_out
 
 				# output projection to normal words
 				output_w = tf.get_variable('output_w', shape=[hidden, word_vocab_size],
@@ -160,7 +183,7 @@ class Model(object):
 				out_idx.append(out_index)
 				# input for next cell
 				# prev_out = tf.matmul(output_softmax, word_embeddings)  # [batch, word_emb_dim]
-				prev_out = tf.nn.embedding_lookup(word_embeddings, out_index) # [batch, word_emb_dim]
+				prev_out = tf.nn.embedding_lookup(self.word_embeddings, out_index) # [batch, word_emb_dim]
 
 		out_idx = tf.transpose(tf.stack(out_idx)) # [batch_size, timesteps]
 
@@ -183,7 +206,57 @@ class Model(object):
 		self.out_valid = [loss, out_idx]
 		return
 
+	def beam_search(self, sess, beam_size = 5):
+		batch_size = tf.shape(self.triple)[0]
+		hidden = self.hidden
+		word_vocab_size = self.word_vocab_size
+		word_emb_dim = self.word_emb_dim
+		kb_vocab_size = self.kb_vocab_size
+		kb_emb_dim = self.kb_emb_dim
+		maxlen = self.maxlen
+
+		sos = tf.ones(shape=[batch_size], dtype=tf.int32)
+		sos_emb = tf.nn.embedding_lookup(self.word_embeddings, sos)
+
+		prev_hidden = self.fact
+		# time step 0: input <SOS>
+		att_o = self.attention(prev_hidden, 0)
+		cell_in = tf.concat([sos_emb, att_o], axis=1)
+		cur_out, cur_hidden = self.decoder_cell(cell_in, prev_hidden)
+
+		start_status = {
+			'score': 0.0,
+			'sequence': [],
+			'prev_hidden': self.fact
+		}
+		beam_agenda = [start_status]
+
+		while beam_agenda:
+			next_agenda = []
+			for status in beam_agenda:
+				prev_hidden = status['prev_hidden']
+				out_index = status['sequence'][-1] # [batch, vocab_size]
+				time_step = len(status['sequence'])
+				prev_out = tf.nn.embedding_lookup(self.word_embeddings, out_index)
+				att_o = self.attention(prev_hidden, time_step)
+				cell_in = tf.concat([prev_out, att_o], axis=1)
+				cur_out, cur_hidden = self.decoder_cell(cell_in, prev_hidden)  # [batch, hidden]
+
+				# output projection to normal words
+				output_w = tf.get_variable('output_w', shape=[hidden, word_vocab_size],
+										   initializer=tf.random_normal_initializer())
+				output_b = tf.get_variable('output_b', shape=[word_vocab_size],
+										   initializer=tf.random_normal_initializer())
+				output = tf.matmul(cur_out, output_w) + output_b  # [batch, pred_size]
+				output_softmax = tf.nn.softmax(output, dim=1)
+
+
+
+
 	def decode_test_model(self, sess, test_dset, niter, wordlist, kblist, saver):
+		'''
+		greedy search
+		'''
 		test_dset.current_index = 0
 		num_batch = int(math.ceil(test_dset.datasize / self.batch))
 		out_idx = []
