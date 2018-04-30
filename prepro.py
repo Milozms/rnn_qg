@@ -9,20 +9,22 @@ def build_word_list():
 	wordset = set()
 	entset = set()
 	relset = set()
-	files = ['./sq/annotated_fb_data_test.txt', './sq/annotated_fb_data_train.txt', './sq/annotated_fb_data_valid.txt']
+	files = ['./sq/annotated_fb_data_test.txt_with_single_placeholder',
+			 './sq/annotated_fb_data_train.txt_with_single_placeholder',
+			 './sq/annotated_fb_data_valid.txt_with_single_placeholder']
 	for infile in files:
 		for line in linecache.getlines(infile):
 			line = line.strip('\n')
 			tokens = line.split('\t')
-			question = tokens[3]
-			tokens = tokens[:3]
+			question = tokens[4]
+			tokens = tokens[1:4]
 			triple = []
 			for tok in tokens:
 				split_tok = tok.split('/')
 				strip_tok = split_tok[1:]
 				new_tok = '/'+'/'.join(strip_tok)
 				triple.append(new_tok)
-			words_ = re.split('[^0-9a-zA-Z]+', question)
+			words_ = re.split('[^0-9a-zA-Z<>]+', question)
 			words = []
 			for word in words_:
 				if word != '':
@@ -84,6 +86,8 @@ def build_word_dict_emb():
 		pickle.dump(emb, f)
 	with open('./dicts/word2id.pickle', 'wb') as f:
 		pickle.dump(word2id, f)
+	with open('./dicts/word2id.json', 'w') as f:
+		json.dump(word2id, f)
 
 def build_kb_dict_emb():
 	with open('./dicts/entlist.json', 'r') as f:
@@ -136,4 +140,5 @@ def build_kb_dict_emb():
 		pickle.dump(kb2id, f)
 
 if __name__ == '__main__':
+	build_word_list()
 	build_word_dict_emb()

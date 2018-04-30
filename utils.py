@@ -11,6 +11,7 @@ def pad_sequence(seq, maxlen):
 
 class Dataset(object):
 	def __init__(self, filename, max_cnt = None, shuffle = True):
+		filename += '_with_single_placeholder'
 		with open('./dicts/word2id.pickle', 'rb') as f:
 			word2id = pickle.load(f)
 		with open('./dicts/kb2id.pickle', 'rb') as f:
@@ -18,11 +19,13 @@ class Dataset(object):
 		triples = []
 		questions = []
 		maxlen = 0
+		subnames = []
 		for line in linecache.getlines(filename):
 			line = line.strip()
 			tokens = line.split('\t')
-			question = tokens[3]
-			tokens = tokens[:3]
+			subname = tokens[0]
+			question = tokens[4]
+			tokens = tokens[1:4]
 			triple = []
 			for tok in tokens:
 				split_tok = tok.split('/')
@@ -34,7 +37,7 @@ class Dataset(object):
 				except:
 					print('%s not exist' % new_tok)
 
-			words_ = re.split('[^0-9a-zA-Z]+', question)
+			words_ = re.split('[^0-9a-zA-Z<>]+', question)
 			words = []
 			for word in words_:
 				if word != '':
@@ -47,6 +50,7 @@ class Dataset(object):
 			words_ = []
 			triples.append(triple)
 			questions.append(words)
+			subnames.append(subname)
 			if len(words) > maxlen:
 				maxlen = len(words)
 		self.data = []
@@ -54,7 +58,7 @@ class Dataset(object):
 		if max_cnt != None and max_cnt < self.datasize:
 			self.datasize = max_cnt
 		for i in range(self.datasize):
-			self.data.append((triples[i], pad_sequence(questions[i], 35), len(questions[i]) + 1))
+			self.data.append((triples[i], pad_sequence(questions[i], 35), len(questions[i]) + 1, subnames[i]))
 			# len + 1 because EOS
 		self.maxlen = maxlen
 		if shuffle:
@@ -73,11 +77,13 @@ class Dataset(object):
 		triples = []
 		questions = []
 		qlen = []
+		subnames = []
 		for ins in batch:
 			triples.append(ins[0])
 			questions.append(ins[1])
 			qlen.append(ins[2])
-		return triples, questions, qlen
+			subnames.append(ins[3])
+		return triples, questions, qlen, subnames
 
 
 

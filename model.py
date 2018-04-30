@@ -10,7 +10,7 @@ import os
 import math
 from tensorflow.contrib import crf
 
-def bleu_val(ques, out_idx, type):
+def bleu_val(ques, out_idx, bleu_order):
 	ques = list(ques)
 	out_idx = list(out_idx)
 	q_eos = ques.index(0)
@@ -19,9 +19,13 @@ def bleu_val(ques, out_idx, type):
 		o_eos = out_idx.index(0)
 		out_idx = out_idx[:o_eos]
 	sf = nltk.translate.bleu_score.SmoothingFunction()
-	if type == 1:
+	if bleu_order == 1:
 		weight = (1, 0, 0, 0)
-	elif type == 4:
+	elif bleu_order == 2:
+		weight = (0, 1, 0, 0)
+	elif bleu_order == 3:
+		weight = (0, 0, 1, 0)
+	elif bleu_order == 4:
 		weight = (0, 0, 0, 1)
 	else:
 		weight = (0.25, 0.25, 0.25, 0.25)
@@ -42,8 +46,7 @@ class Model(object):
 		self.epoch_num = config.epoch_num
 		self.max_grad_norm = config.max_grad_norm
 		self.lr = config.lr
-		self.maxbleu1 = 0.0
-		self.maxbleu4 = 0.0
+		self.maxbleu = 0.0
 		self.minloss = 100
 		self.build()
 
@@ -262,12 +265,14 @@ class Model(object):
 		out_idx = []
 		triples_idx = []
 		bleu1 = 0.0
+		bleu2 = 0.0
+		bleu3 = 0.0
 		bleu4 = 0.0
 		for bi in tqdm(range(num_batch)):
 			mini_batch = test_dset.get_mini_batch(self.batch)
 			if mini_batch == None:
 				break
-			triples, questions, qlen = mini_batch
+			triples, questions, qlen, subnames = mini_batch
 			feed_dict = {}
 			feed_dict[self.triple] = triples
 			feed_dict[self.question] = questions
@@ -280,15 +285,17 @@ class Model(object):
 			triples_idx += triples
 			for i in range(len(questions)):
 				bleu1 += bleu_val(questions[i], out_idx_cur[i], 1)
+				bleu2 += bleu_val(questions[i], out_idx_cur[i], 2)
+				bleu3 += bleu_val(questions[i], out_idx_cur[i], 3)
 				bleu4 += bleu_val(questions[i], out_idx_cur[i], 4)
 		bleu1 /= test_dset.datasize
+		bleu2 /= test_dset.datasize
+		bleu3 /= test_dset.datasize
 		bleu4 /= test_dset.datasize
-		logging.info('iter %d, bleu1 = %f, bleu4 = %f' % (niter, bleu1, bleu4))
-		if bleu1 > self.maxbleu1:
-			self.maxbleu1 = bleu1
-			saver.save(sess, './savemodel/model' + str(niter) + '.pkl')
-		if bleu4 > self.maxbleu4:
-			self.maxbleu4 = bleu4
+		logging.info('iter %d, bleu1 = %f, bleu2 = %f, bleu3 = %f bleu4 = %f' % (niter, bleu1, bleu2, bleu3, bleu4))
+		bleu = (bleu1 + bleu2 + bleu3 + bleu4) / 4
+		if bleu > self.maxbleu:
+			self.maxbleu = bleu
 			saver.save(sess, './savemodel/model' + str(niter) + '.pkl')
 		with open('./output/output' + str(niter) + '.txt', 'w') as f:
 			for i, s in enumerate(out_idx):
@@ -311,7 +318,7 @@ class Model(object):
 			mini_batch = valid_dset.get_mini_batch(self.batch)
 			if mini_batch == None:
 				break
-			triples, questions, qlen = mini_batch
+			triples, questions, qlen, subnames = mini_batch
 			feed_dict = {}
 			feed_dict[self.triple] = triples
 			feed_dict[self.question] = questions
@@ -340,7 +347,7 @@ class Model(object):
 				mini_batch = train_dset.get_mini_batch(self.batch)
 				if mini_batch == None:
 					break
-				triples, questions, qlen = mini_batch
+				triples, questions, qlen, subnames = mini_batch
 				feed_dict = {}
 				feed_dict[self.triple] = triples
 				feed_dict[self.question] = questions

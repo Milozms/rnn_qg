@@ -33,7 +33,7 @@ def minitrain(config, train_file, valid_file, wordlist, kblist):
 			mini_batch = train_dset.get_mini_batch(model.batch)
 			if mini_batch == None:
 				break
-			triples, questions, qlen = mini_batch
+			triples, questions, qlen, subnames = mini_batch
 			feed_dict = {}
 			feed_dict[model.triple] = triples
 			feed_dict[model.question] = questions

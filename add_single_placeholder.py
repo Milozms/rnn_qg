@@ -72,7 +72,7 @@ def sq_subjects_names_extractor_from_wikidata():
 def read_fb2w():
 	file = './fb2w/fb2w.nt'
 	fb2w = {}
-	for idx, line in tqdm(enumerate(linecache.getlines(file))):
+	for idx, line in enumerate(tqdm(linecache.getlines(file))):
 		if idx <= 3:
 			continue
 		line = line.strip()
@@ -97,28 +97,51 @@ def sq_subjects_to_wikidata(fb2w):
 	addcnt = 0
 	for infile in files:
 		outfile = open(infile + '_with_subject_name', 'w')
-		for line in tqdm(linecache.getlines(infile)):
+		for idx, line in enumerate(tqdm(linecache.getlines(infile))):
 			tokens = line.strip('\n').split('\t')
 			sub = tokens[0]
 			split_sub = sub.split('/')
 			sub_conc = '.'.join(split_sub[1:])
 			if sub_conc in fbsub2name:
 				outfile.write(fbsub2name[sub_conc] + '\t' + line)
-			elif sub_conc in fb2w:
-				addcnt += 1
-				wk = fb2w[sub_conc]
-				name = query_entity_name(wk)
-				if name != None:
-					outfile.write(name+'\t'+line)
-				# else:
-				# 	outfile.write('<WK>'+wk + '\t' + line)
+				# outfile.write(str(idx) + '\t' + fbsub2name[sub_conc] + '\t' + line)
+			# elif sub_conc in fb2w:
+			# 	addcnt += 1
+			# 	wk = fb2w[sub_conc]
+			# 	name = query_entity_name(wk)
+			# 	if name != None:
+			# 		outfile.write(name+'\t'+line)
+			# 	else:
+			# 		outfile.write('<WK>'+wk + '\t' + line)
 			else:
 				ncnt += 1
 	print('not found number: %d' % ncnt)
 	print('add number: %d' % addcnt)
 
+def add_single_placeholder():
+	files = ['./sq/annotated_fb_data_test.txt', './sq/annotated_fb_data_train.txt', './sq/annotated_fb_data_valid.txt']
+	ncnt = 0
+	for infile in files:
+		file_withname = infile + '_with_subject_name'
+		outfile = open(infile + '_with_single_placeholder', 'w')
+		for idx, line in enumerate(tqdm(linecache.getlines(file_withname))):
+			tokens = line.strip('\n').split('\t')
+			subname = tokens[0].lower()
+			question = tokens[4].lower()
+			question = ' '+question+' '
+			subname = ' '+subname+' '
+			# in case that subname is part of other word !!!
+			sub_idx = question.find(subname)
+			if sub_idx == -1:
+				print('Subject not found: %s, %s' % (question, subname))
+				ncnt += 1
+			else:
+				question = question.replace(subname, ' <PLACEHOLDER> ')
+				outfile.write('\t'.join(tokens[:4])+'\t'+question+'\n')
+	print('no subject number: %d' % ncnt)
+
 
 if __name__ == '__main__':
-	# sq_subjects_names_extractor_from_wikidata()
-	fb2w = read_fb2w()
-	sq_subjects_to_wikidata(fb2w)
+	# fb2w = read_fb2w()
+	# sq_subjects_to_wikidata(fb2w)
+	add_single_placeholder()
