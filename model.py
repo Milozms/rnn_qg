@@ -11,13 +11,6 @@ import math
 from tensorflow.contrib import crf
 
 def bleu_val(ques, out_idx, bleu_order):
-	ques = list(ques)
-	out_idx = list(out_idx)
-	q_eos = ques.index(0)
-	ques = ques[:q_eos]
-	if 0 in out_idx:
-		o_eos = out_idx.index(0)
-		out_idx = out_idx[:o_eos]
 	sf = nltk.translate.bleu_score.SmoothingFunction()
 	if bleu_order == 1:
 		weight = (1, 0, 0, 0)
