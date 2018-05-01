@@ -31,6 +31,17 @@ def bleu_val(ques, out_idx, bleu_order):
 		weight = (0.25, 0.25, 0.25, 0.25)
 	return nltk.translate.bleu(references=[ques], hypothesis=out_idx, smoothing_function=sf.method1, weights=weight)
 
+def restore_placeholder(idx_seq, wordlist, subname):
+	words = []
+	for w in idx_seq[i]:
+		if w == 0:
+			break
+		if wordlist[w] == '<placeholder>':
+			words += subname.split(' ')
+		else:
+			words.append(wordlist[w])
+	return words
+
 class Model(object):
 	def __init__(self, config, kb_emb_mat, word_emb_mat):
 		self.hidden = config.hidden
@@ -268,6 +279,7 @@ class Model(object):
 		bleu2 = 0.0
 		bleu3 = 0.0
 		bleu4 = 0.0
+		outf = open('./output/output' + str(niter) + '.txt', 'w')
 		for bi in tqdm(range(num_batch)):
 			mini_batch = test_dset.get_mini_batch(self.batch)
 			if mini_batch == None:
@@ -284,10 +296,14 @@ class Model(object):
 			out_idx += out_idx_lst
 			triples_idx += triples
 			for i in range(len(questions)):
-				bleu1 += bleu_val(questions[i], out_idx_cur[i], 1)
-				bleu2 += bleu_val(questions[i], out_idx_cur[i], 2)
-				bleu3 += bleu_val(questions[i], out_idx_cur[i], 3)
-				bleu4 += bleu_val(questions[i], out_idx_cur[i], 4)
+				question_restore = restore_placeholder(questions[i], wordlist, subnames[i])
+				output_restore = restore_placeholder(out_idx_cur[i], wordlist, subnames[i])
+				output_question = ' '.join(output_restore)
+				outf.write(output_question + '\n')
+				bleu1 += bleu_val(question_restore, output_restore, 1)
+				bleu2 += bleu_val(question_restore, output_restore, 2)
+				bleu3 += bleu_val(question_restore, output_restore, 3)
+				bleu4 += bleu_val(question_restore, output_restore, 4)
 		bleu1 /= test_dset.datasize
 		bleu2 /= test_dset.datasize
 		bleu3 /= test_dset.datasize
@@ -297,16 +313,7 @@ class Model(object):
 		if bleu > self.maxbleu:
 			self.maxbleu = bleu
 			saver.save(sess, './savemodel/model' + str(niter) + '.pkl')
-		with open('./output/output' + str(niter) + '.txt', 'w') as f:
-			for i, s in enumerate(out_idx):
-				words = []
-				for w in s:
-					if w == 0:
-						break
-					words.append(wordlist[w])
-				sentence = ' '.join(words)
-				triples_name = [kblist[x] for x in triples_idx[i]]
-				f.write(str(triples_name)+'\t'+sentence+'\n')
+		outf.close()
 
 
 	def valid_model(self, sess, valid_dset, niter, saver):
