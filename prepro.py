@@ -7,8 +7,6 @@ import numpy as np
 
 def build_word_list():
 	wordset = set()
-	entset = set()
-	relset = set()
 	files = ['./sq/annotated_fb_data_test.txt_with_single_placeholder',
 			 './sq/annotated_fb_data_train.txt_with_single_placeholder',
 			 './sq/annotated_fb_data_valid.txt_with_single_placeholder']
@@ -17,13 +15,6 @@ def build_word_list():
 			line = line.strip('\n')
 			tokens = line.split('\t')
 			question = tokens[4]
-			tokens = tokens[1:4]
-			triple = []
-			for tok in tokens:
-				split_tok = tok.split('/')
-				strip_tok = split_tok[1:]
-				new_tok = '/'+'/'.join(strip_tok)
-				triple.append(new_tok)
 			words_ = re.split('[^0-9a-zA-Z<>]+', question)
 			words = []
 			for word in words_:
@@ -32,15 +23,33 @@ def build_word_list():
 			words_ = []
 			for word in words:
 				wordset.add(word)
+	print(len(wordset))
+	with open('./dicts/wordlist.json', 'w') as f:
+		json.dump(list(wordset), f)
+
+def build_kb_list():
+	entset = set()
+	relset = set()
+	files = ['./sq/annotated_fb_data_test.txt',
+			 './sq/annotated_fb_data_train.txt',
+			 './sq/annotated_fb_data_valid.txt']
+	for infile in files:
+		for line in linecache.getlines(infile):
+			line = line.strip('\n')
+			tokens = line.split('\t')
+			tokens = tokens[1:4]
+			triple = []
+			for tok in tokens:
+				split_tok = tok.split('/')
+				strip_tok = split_tok[1:]
+				new_tok = '/' + '/'.join(strip_tok)
+				triple.append(new_tok)
 			for ent in [triple[0], triple[2]]:
 				entset.add(ent)
 			for rel in [triple[1]]:
 				relset.add(rel)
-	print(len(wordset))
 	print(len(entset))
 	print(len(relset))
-	with open('./dicts/wordlist.json', 'w') as f:
-		json.dump(list(wordset), f)
 	with open('./dicts/entlist.json', 'w') as f:
 		json.dump(list(entset), f)
 	with open('./dicts/rellist.json', 'w') as f:
@@ -140,5 +149,5 @@ def build_kb_dict_emb():
 		pickle.dump(kb2id, f)
 
 if __name__ == '__main__':
-	build_word_list()
-	build_word_dict_emb()
+	build_kb_list()
+	build_kb_dict_emb()
