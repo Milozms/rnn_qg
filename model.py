@@ -33,7 +33,7 @@ def bleu_val(ques, out_idx, bleu_order):
 
 def restore_placeholder(idx_seq, wordlist, subname):
 	words = []
-	for w in idx_seq[i]:
+	for w in idx_seq:
 		if w == 0:
 			break
 		if wordlist[w] == '<placeholder>':
