@@ -292,8 +292,8 @@ class Model(object):
 		bleu2 /= test_dset.datasize
 		bleu3 /= test_dset.datasize
 		bleu4 /= test_dset.datasize
-		logging.info('iter %d, bleu1 = %f, bleu2 = %f, bleu3 = %f bleu4 = %f' % (niter, bleu1, bleu2, bleu3, bleu4))
 		bleu = (bleu1 + bleu2 + bleu3 + bleu4) / 4
+		logging.info('iter %d, bleu1 = %f, bleu2 = %f, bleu3 = %f bleu4 = %f, bleu = %f' % (niter, bleu1, bleu2, bleu3, bleu4, bleu))
 		if bleu > self.maxbleu:
 			self.maxbleu = bleu
 			saver.save(sess, './savemodel/model' + str(niter) + '.pkl')
