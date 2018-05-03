@@ -88,13 +88,13 @@ def sq_subjects_to_wikidata():
 	fbsub2name = {}
 	for line in tqdm(linecache.getlines('./dicts/fb_en_title_final.txt')):
 		line = line.strip()
-		tokens = line.split()
+		tokens = line.split('\t')
 		if len(tokens) > 1:
 			fbsub2name[tokens[0]] = tokens[1]
 	for line in tqdm(linecache.getlines('./dicts/entity_2.txt')):
-		line = line.strip()
+		line = line.strip('\t')
 		tokens = line.split()
-		if len(tokens) > 1:
+		if len(tokens) > 1 and tokens[0] not in fbsub2name:
 			fbsub2name[tokens[0]] = tokens[1]
 
 	files = ['./sq/annotated_fb_data_test.txt', './sq/annotated_fb_data_train.txt', './sq/annotated_fb_data_valid.txt']

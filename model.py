@@ -8,6 +8,7 @@ import numpy as np
 import json
 import os
 import math
+import copy
 from tensorflow.contrib import crf
 
 def bleu_val(ques, out_idx, bleu_order):
@@ -222,40 +223,46 @@ class Model(object):
 		kb_emb_dim = self.kb_emb_dim
 		maxlen = self.maxlen
 
-		sos = tf.ones(shape=[batch_size], dtype=tf.int32)
-		sos_emb = tf.nn.embedding_lookup(self.word_embeddings, sos)
+		with tf.variable_scope("decoder") as beam_scope:
+			beam_scope.reuse_variables()
 
-		prev_hidden = self.fact
-		# time step 0: input <SOS>
-		att_o = self.attention(prev_hidden, 0)
-		cell_in = tf.concat([sos_emb, att_o], axis=1)
-		cur_out, cur_hidden = self.decoder_cell(cell_in, prev_hidden)
+			sos = tf.ones(shape=[batch_size], dtype=tf.int32)
+			sos_emb = tf.nn.embedding_lookup(self.word_embeddings, sos)
 
-		start_status = {
-			'score': 0.0,
-			'sequence': [],
-			'prev_hidden': self.fact
-		}
-		beam_agenda = [start_status]
+			prev_hidden = self.fact
+			# time step 0: input <SOS>
+			att_o = self.attention(prev_hidden, 0)
+			cell_in = tf.concat([sos_emb, att_o], axis=1)
+			cur_out, cur_hidden = self.decoder_cell(cell_in, prev_hidden)
 
-		while beam_agenda:
-			next_agenda = []
-			for status in beam_agenda:
-				prev_hidden = status['prev_hidden']
-				out_index = status['sequence'][-1] # [batch, vocab_size]
-				time_step = len(status['sequence'])
-				prev_out = tf.nn.embedding_lookup(self.word_embeddings, out_index)
-				att_o = self.attention(prev_hidden, time_step)
-				cell_in = tf.concat([prev_out, att_o], axis=1)
-				cur_out, cur_hidden = self.decoder_cell(cell_in, prev_hidden)  # [batch, hidden]
+			start_status = {
+				'score': 0.0,
+				'sequence': [],
+				'prev_hidden': self.fact
+			}
+			beam_agenda = [start_status]
 
-				# output projection to normal words
-				output_w = tf.get_variable('output_w', shape=[hidden, word_vocab_size],
-										   initializer=tf.random_normal_initializer())
-				output_b = tf.get_variable('output_b', shape=[word_vocab_size],
-										   initializer=tf.random_normal_initializer())
-				output = tf.matmul(cur_out, output_w) + output_b  # [batch, pred_size]
-				output_softmax = tf.nn.softmax(output, dim=1)
+			while beam_agenda:
+				next_agenda = []
+				for status in beam_agenda:
+
+					prev_hidden = status['prev_hidden']
+					out_index = status['sequence'][-1] # [batch, vocab_size]
+					time_step = len(status['sequence'])
+					prev_out = tf.nn.embedding_lookup(self.word_embeddings, out_index)
+					att_o = self.attention(prev_hidden, time_step)
+					cell_in = tf.concat([prev_out, att_o], axis=1)
+					cur_out, cur_hidden = self.decoder_cell(cell_in, prev_hidden)  # [batch, hidden]
+
+					# output projection to normal words
+					output_w = tf.get_variable('output_w', shape=[hidden, word_vocab_size],
+											   initializer=tf.random_normal_initializer())
+					output_b = tf.get_variable('output_b', shape=[word_vocab_size],
+											   initializer=tf.random_normal_initializer())
+					output = tf.matmul(cur_out, output_w) + output_b  # [batch, pred_size]
+					output_softmax = tf.nn.softmax(output, dim=1)
+
+
 
 
 

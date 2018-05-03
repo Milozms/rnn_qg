@@ -71,6 +71,7 @@ def build_word_dict_emb():
 	pretrained = 0
 	avg_sigma = 0
 	avg_mu = 0
+	not_pretrained = []
 	for line in tqdm(linecache.getlines('../glove.840B.300d.txt')):
 		line = line.strip()
 		tokens = line.split()
@@ -90,6 +91,8 @@ def build_word_dict_emb():
 	for w in word2id:
 		if w not in initialized:
 			emb[word2id[w]] = np.random.normal(avg_mu, avg_sigma, (dim,))
+			not_pretrained.append(w)
+
 	print(pretrained, vocab_size)
 	with open('./dicts/wordemb.pickle', 'wb') as f:
 		pickle.dump(emb, f)
@@ -97,6 +100,8 @@ def build_word_dict_emb():
 		pickle.dump(word2id, f)
 	with open('./dicts/word2id.json', 'w') as f:
 		json.dump(word2id, f)
+	with open('./dicts/not_pretrained.json', 'w') as f:
+		json.dump(not_pretrained, f)
 
 def build_kb_dict_emb():
 	with open('./dicts/entlist.json', 'r') as f:
