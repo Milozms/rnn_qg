@@ -84,9 +84,14 @@ def read_fb2w():
 		json.dump(fb2w, f)
 	return fb2w
 
-def sq_subjects_to_wikidata(fb2w):
+def sq_subjects_to_wikidata():
 	fbsub2name = {}
-	for line in linecache.getlines('./dicts/fb_en_title_final.txt'):
+	for line in tqdm(linecache.getlines('./dicts/fb_en_title_final.txt')):
+		line = line.strip()
+		tokens = line.split()
+		if len(tokens) > 1:
+			fbsub2name[tokens[0]] = tokens[1]
+	for line in tqdm(linecache.getlines('./dicts/entity_2.txt')):
 		line = line.strip()
 		tokens = line.split()
 		if len(tokens) > 1:
@@ -127,13 +132,27 @@ def add_single_placeholder():
 		for idx, line in enumerate(tqdm(linecache.getlines(file_withname))):
 			tokens = line.strip('\n').split('\t')
 			subname = tokens[0].lower()
-			question = tokens[4].lower()
+			question = tokens[4]
+			words_ = re.split('[^0-9a-zA-Z<>]+', question)
+			words = []
+			for word in words_:
+				if word != '':
+					words.append(word.lower())
+			words_ = []
+			question = ' '.join(words)
 			question = ' '+question+' '
+			words_ = re.split('[^0-9a-zA-Z<>]+', subname)
+			words = []
+			for word in words_:
+				if word != '':
+					words.append(word.lower())
+			words_ = []
+			subname = ' '.join(words)
 			subname = ' '+subname+' '
 			# in case that subname is part of other word !!!
 			sub_idx = question.find(subname)
 			if sub_idx == -1:
-				print('Subject not found: %s, %s' % (question, subname))
+				print('Subject not found: %s, %s' % (tokens[4], tokens[0]))
 				ncnt += 1
 			else:
 				question = question.replace(subname, ' <PLACEHOLDER> ')
@@ -143,5 +162,5 @@ def add_single_placeholder():
 
 if __name__ == '__main__':
 	# fb2w = read_fb2w()
-	# sq_subjects_to_wikidata(fb2w)
+	sq_subjects_to_wikidata()
 	add_single_placeholder()
