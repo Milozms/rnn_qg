@@ -72,7 +72,7 @@ def build_word_dict_emb():
 	avg_sigma = 0
 	avg_mu = 0
 	not_pretrained = []
-	for line in tqdm(linecache.getlines('../glove.840B.300d.txt')):
+	for line in tqdm(linecache.getlines('/Users/zms/Documents/学习资料/NLP/glove.840B.300d.txt')):
 		line = line.strip()
 		tokens = line.split()
 		word = tokens[0]
@@ -157,4 +157,4 @@ if __name__ == '__main__':
 	# build_kb_list()
 	# build_kb_dict_emb()
 	build_word_list()
-	build_word_dict_emb()
+	# build_word_dict_emb()
