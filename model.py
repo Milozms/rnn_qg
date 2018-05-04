@@ -195,8 +195,8 @@ class Model(object):
 
 		out_idx = tf.transpose(tf.stack(out_idx)) # [batch_size, timesteps]
 
+		self.out_test = out_idx
 		if self.is_train == False:
-			self.out = out_idx
 			return
 
 		loss = tf.transpose(tf.stack(loss_steps)) # [batch_size, maxlen - 1]
@@ -263,10 +263,6 @@ class Model(object):
 					output_softmax = tf.nn.softmax(output, dim=1)
 
 
-
-
-
-
 	def decode_test_model(self, sess, test_dset, niter, wordlist, kblist, saver):
 		'''
 		greedy search
@@ -290,7 +286,7 @@ class Model(object):
 			feed_dict[self.question] = questions
 			feed_dict[self.qlen] = qlen
 			feed_dict[self.keep_prob] = 1.0
-			out_idx_cur = sess.run(self.out, feed_dict=feed_dict)
+			out_idx_cur = sess.run(self.out_test, feed_dict=feed_dict)
 			out_idx_cur = np.array(out_idx_cur, dtype=np.int32)
 			out_idx_lst = [list(x) for x in out_idx_cur]
 			out_idx += out_idx_lst
@@ -308,10 +304,9 @@ class Model(object):
 		# bleu2 /= test_dset.datasize
 		# bleu3 /= test_dset.datasize
 		bleu4 /= test_dset.datasize
-		bleu = (bleu1 + bleu2 + bleu3 + bleu4) / 4
 		logging.info('iter %d, bleu4 = %f' % (niter, bleu4))
-		if bleu > self.maxbleu:
-			self.maxbleu = bleu
+		if bleu4 > self.maxbleu:
+			self.maxbleu = bleu4
 			saver.save(sess, './savemodel/model' + str(niter) + '.pkl')
 		outf.close()
 

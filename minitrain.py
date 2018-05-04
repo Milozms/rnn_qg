@@ -44,9 +44,9 @@ def minitrain(config, train_file, valid_file, wordlist, kblist):
 			loss_iter += loss
 		loss_iter /= num_batch
 		logging.info('iter %d, train loss: %f' % (ei, loss_iter))
-		model.valid_model(sess, valid_dset, ei, saver)
-		if ei % 5 == 0:
-			mtest.decode_test_model(sess, valid_dset, ei, wordlist, kblist, saver)
+		# model.valid_model(sess, valid_dset, ei, saver)
+		mtest.decode_test_model(sess, valid_dset, ei, wordlist, kblist, saver)
+		# model.decode_test_model(sess, valid_dset, ei, wordlist, kblist, saver)
 
 if __name__ == '__main__':
 	os.environ["CUDA_VISIBLE_DEVICES"] = '0'
