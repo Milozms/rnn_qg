@@ -16,11 +16,11 @@ def bleu_val(ques, out_idx, bleu_order):
 	if bleu_order == 1:
 		weight = (1, 0, 0, 0)
 	elif bleu_order == 2:
-		weight = (0, 1, 0, 0)
+		weight = (0.5, 0.5, 0, 0)
 	elif bleu_order == 3:
-		weight = (0, 0, 1, 0)
+		weight = (1.0/3, 1.0/3, 1.0/3, 0)
 	elif bleu_order == 4:
-		weight = (0, 0, 0, 1)
+		weight = (0.25, 0.25, 0.25, 0.25)
 	else:
 		weight = (0.25, 0.25, 0.25, 0.25)
 	return nltk.translate.bleu(references=[ques], hypothesis=out_idx, smoothing_function=sf.method1, weights=weight)
@@ -300,16 +300,16 @@ class Model(object):
 				output_restore = restore_placeholder(out_idx_cur[i], wordlist, subnames[i])
 				output_question = ' '.join(output_restore)
 				outf.write(output_question + '\n')
-				bleu1 += bleu_val(question_restore, output_restore, 1)
-				bleu2 += bleu_val(question_restore, output_restore, 2)
-				bleu3 += bleu_val(question_restore, output_restore, 3)
+				# bleu1 += bleu_val(question_restore, output_restore, 1)
+				# bleu2 += bleu_val(question_restore, output_restore, 2)
+				# bleu3 += bleu_val(question_restore, output_restore, 3)
 				bleu4 += bleu_val(question_restore, output_restore, 4)
-		bleu1 /= test_dset.datasize
-		bleu2 /= test_dset.datasize
-		bleu3 /= test_dset.datasize
+		# bleu1 /= test_dset.datasize
+		# bleu2 /= test_dset.datasize
+		# bleu3 /= test_dset.datasize
 		bleu4 /= test_dset.datasize
 		bleu = (bleu1 + bleu2 + bleu3 + bleu4) / 4
-		logging.info('iter %d, bleu1 = %f, bleu2 = %f, bleu3 = %f bleu4 = %f, bleu = %f' % (niter, bleu1, bleu2, bleu3, bleu4, bleu))
+		logging.info('iter %d, bleu4 = %f' % (niter, bleu4))
 		if bleu > self.maxbleu:
 			self.maxbleu = bleu
 			saver.save(sess, './savemodel/model' + str(niter) + '.pkl')
