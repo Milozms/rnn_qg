@@ -283,7 +283,7 @@ class Model(object):
 			triples, questions, qlen, subnames = mini_batch
 			feed_dict = {}
 			feed_dict[self.triple] = triples
-			feed_dict[self.question] = questions
+			# feed_dict[self.question] = questions
 			feed_dict[self.qlen] = qlen
 			feed_dict[self.keep_prob] = 1.0
 			out_idx_cur = sess.run(self.out_test, feed_dict=feed_dict)
