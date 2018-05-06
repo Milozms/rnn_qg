@@ -138,7 +138,7 @@ def build_kb_dict_emb(
 			emb[kb2id[tokens[0]]] = np.array(emb_whole[int(tokens[1])])
 			pretrained += 1
 			initialized[tokens[0]] = True
-	print(pretrained, len(entlist))
+	print('%d entities pretrained, %d entities total' % (pretrained, len(entlist)))
 
 	emb_whole = []
 	for line in tqdm(linecache.getlines('/home/zhangms/fb5m/relation2vecfb5m.vec')):
@@ -152,12 +152,28 @@ def build_kb_dict_emb(
 			emb[kb2id[tokens[0]]] = np.array(emb_whole[int(tokens[1])])
 			pretrained += 1
 			initialized[tokens[0]] = True
-	print(pretrained, kb_size)
+	print('%d relations pretrained, %d relations total' % (pretrained, kb_size))
 
 	with open(embfile, 'wb') as f:
 		pickle.dump(emb, f)
 	with open(idfile, 'wb') as f:
 		pickle.dump(kb2id, f)
+
+def sq_triple_format(infile):
+	# infile = 'train', 'test', 'valid'
+	outf = open('./sq/sq'+ infile +'.txt', 'w')
+	for line in tqdm(linecache.getlines('./sq/annotated_fb_data_'+infile+'.txt')):
+		line = line.strip('\n')
+		tokens = line.split('\t')
+		outtokens = []
+		for tok in tokens[0:3]:
+			split_tok = tok.split('/')
+			strip_tok = split_tok[1:]
+			new_tok = '/' + '/'.join(strip_tok)
+			outtokens.append(new_tok)
+		outtokens.append(tokens[3])
+		outf.write('\t'.join(outtokens) + '\n')
+	outf.close()
 
 if __name__ == '__main__':
 	build_kb_list(
@@ -171,3 +187,6 @@ if __name__ == '__main__':
 		embfile = './dicts/kbemb_1.pickle')
 	# build_word_list()
 	# build_word_dict_emb()
+	# sq_triple_format('train')
+	# sq_triple_format('test')
+	# sq_triple_format('valid')
