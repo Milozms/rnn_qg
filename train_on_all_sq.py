@@ -1,5 +1,5 @@
 import tensorflow as tf
-from utils import Dataset
+from utils import Dataset, testDataset
 from tqdm import tqdm
 import nltk
 import logging
@@ -10,9 +10,9 @@ import os
 import math
 from model import Model
 
-def minitrain(config, train_file, valid_file, wordlist, kblist):
+def minitrain(config, train_file, test_file, wordlist, kblist):
 	train_dset = Dataset(train_file)
-	valid_dset = Dataset(valid_file, shuffle=False)
+	test_dset = testDataset(test_file, shuffle=False)
 	with tf.variable_scope('model'):
 		model = Model(config, word_emb_mat=wordemb, kb_emb_mat=kbemb)
 	config.is_train = False
@@ -45,8 +45,7 @@ def minitrain(config, train_file, valid_file, wordlist, kblist):
 		loss_iter /= num_batch
 		logging.info('iter %d, train loss: %f' % (ei, loss_iter))
 		# model.valid_model(sess, valid_dset, ei, saver)
-		# mtest.decode_test_model(sess, valid_dset, ei, wordlist, kblist, saver, dir='./output_test')
-		# model.decode_test_model(sess, valid_dset, ei, wordlist, kblist, saver)
+		mtest.decode_test_model(sess, test_dset, ei, wordlist, kblist, saver, dir='./output_newdata')
 
 if __name__ == '__main__':
 	os.environ["CUDA_VISIBLE_DEVICES"] = '0'
@@ -85,11 +84,11 @@ if __name__ == '__main__':
 	flags.DEFINE_integer('kb_emb_dim', 100, "")
 	flags.DEFINE_integer('maxlen', 35, "")
 	flags.DEFINE_integer('batch', 100, "")
-	flags.DEFINE_integer('epoch_num', 30, "")
+	flags.DEFINE_integer('epoch_num', 15, "")
 	flags.DEFINE_boolean('is_train', True, "")
 	flags.DEFINE_float('max_grad_norm', 0.1, "")
 	flags.DEFINE_float('lr', 0.00025, "")
 	config = flags.FLAGS
 	train_file = './sq/sq.txt'
-	valid_file = './sq/annotated_fb_data_test.txt'
-	minitrain(config, train_file, valid_file, wordlist, kblist)
+	test_file = './sq/newdata.txt'
+	minitrain(config, train_file, test_file, wordlist, kblist)

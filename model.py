@@ -307,7 +307,7 @@ class Model(object):
 		logging.info('iter %d, bleu4 = %f' % (niter, bleu4))
 		if bleu4 > self.maxbleu:
 			self.maxbleu = bleu4
-			saver.save(sess, './savemodel/model' + str(niter) + '.pkl')
+			saver.save(sess, './savemodel_train_on_all_sq/model' + str(niter) + '.pkl')
 		outf.close()
 
 

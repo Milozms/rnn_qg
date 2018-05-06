@@ -4,6 +4,7 @@ import linecache
 from tqdm import tqdm
 import re
 import numpy as np
+from nltk.tokenize import wordpunct_tokenize
 
 def build_word_list():
 	wordset = set()
