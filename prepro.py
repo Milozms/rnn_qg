@@ -4,7 +4,6 @@ import linecache
 from tqdm import tqdm
 import re
 import numpy as np
-from nltk.tokenize import wordpunct_tokenize
 
 def build_word_list():
 	wordset = set()
@@ -16,8 +15,7 @@ def build_word_list():
 			line = line.strip('\n')
 			tokens = line.split('\t')
 			question = tokens[4]
-			# words_ = re.split('[^0-9a-zA-Z<>]+', question)
-			words_ = wordpunct_tokenize(question)
+			words_ = re.split('[^0-9a-zA-Z<>]+', question)
 			words = []
 			for word in words_:
 				if word != '':
