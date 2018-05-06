@@ -5,6 +5,7 @@ from tqdm import tqdm
 import re
 import numpy as np
 from urllib.request import urlopen
+from nltk.tokenize import wordpunct_tokenize
 
 def query_entity_name(ent):
 	try:
@@ -138,7 +139,8 @@ def add_single_placeholder():
 			question = tokens[4].lower()
 			sub_idx = question.find(subname)
 			if sub_idx == -1:
-				words_ = re.split('[^0-9a-zA-Z<>]+', question)
+				# words_ = re.split('[^0-9a-zA-Z<>]+', question)
+				words_ = wordpunct_tokenize(question)
 				words = []
 				for word in words_:
 					if word != '':
@@ -146,7 +148,8 @@ def add_single_placeholder():
 				words_ = []
 				question = ' '.join(words)
 				question = ' '+question+' '
-				words_ = re.split('[^0-9a-zA-Z<>]+', subname)
+				# words_ = re.split('[^0-9a-zA-Z<>]+', subname)
+				words_ = wordpunct_tokenize(question)
 				words = []
 				for word in words_:
 					if word != '':

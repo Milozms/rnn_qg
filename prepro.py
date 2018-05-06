@@ -16,7 +16,8 @@ def build_word_list():
 			line = line.strip('\n')
 			tokens = line.split('\t')
 			question = tokens[4]
-			words_ = re.split('[^0-9a-zA-Z<>]+', question)
+			# words_ = re.split('[^0-9a-zA-Z<>]+', question)
+			words_ = wordpunct_tokenize(question)
 			words = []
 			for word in words_:
 				if word != '':
@@ -176,16 +177,19 @@ def sq_triple_format(infile):
 		outf.write('\t'.join(outtokens) + '\n')
 	outf.close()
 
-if __name__ == '__main__':
+def newdata_kb():
 	build_kb_list(
 		files=('./sq/annotated_fb_data_test.txt',
-			'./sq/annotated_fb_data_train.txt',
-			'./sq/annotated_fb_data_valid.txt',
-			'./sq/newdata.txt'),
+			   './sq/annotated_fb_data_train.txt',
+			   './sq/annotated_fb_data_valid.txt',
+			   './sq/newdata.txt'),
 		outfiles=('./dicts/entlist_1.json', './dicts/rellist_1.json'))
-	build_kb_dict_emb(listfiles = ('./dicts/entlist_1.json', './dicts/rellist_1.json'),
-		idfile = './dicts/kb2id_1.pickle',
-		embfile = './dicts/kbemb_1.pickle')
+	build_kb_dict_emb(listfiles=('./dicts/entlist_1.json', './dicts/rellist_1.json'),
+					  idfile='./dicts/kb2id_1.pickle',
+					  embfile='./dicts/kbemb_1.pickle')
+
+if __name__ == '__main__':
+	newdata_kb()
 	# build_word_list()
 	# build_word_dict_emb()
 	# sq_triple_format('train')

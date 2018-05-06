@@ -3,6 +3,7 @@ import pickle
 import linecache
 import re
 from tqdm import tqdm
+from nltk.tokenize import wordpunct_tokenize
 
 def pad_sequence(seq, maxlen):
 	if len(seq)>maxlen:
@@ -38,7 +39,8 @@ class Dataset(object):
 				except:
 					print('%s not exist' % new_tok)
 
-			words_ = re.split('[^0-9a-zA-Z<>]+', question)
+			# words_ = re.split('[^0-9a-zA-Z<>]+', question)
+			words_ = wordpunct_tokenize(question)
 			words = []
 			for word in words_:
 				if word != '':
@@ -127,7 +129,8 @@ class testDataset(object):
 				except:
 					print('%s not exist' % tok)
 
-			words_ = re.split('[^0-9a-zA-Z<>]+', question)
+			# words_ = re.split('[^0-9a-zA-Z<>]+', question)
+			words_ = wordpunct_tokenize(question)
 			words = []
 			for word in words_:
 				if word != '':
