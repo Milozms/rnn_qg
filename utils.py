@@ -2,6 +2,7 @@ import numpy as np
 import pickle
 import linecache
 import re
+from tqdm import tqdm
 
 def pad_sequence(seq, maxlen):
 	if len(seq)>maxlen:
@@ -88,6 +89,20 @@ class Dataset(object):
 
 class testDataset(object):
 	def __init__(self, filename, max_cnt = None, shuffle = True):
+		fbsub2name = {}
+		print('Reading freebase subject to name mapping......')
+		for line in tqdm(linecache.getlines('./dicts/fb_en_title_final.txt')):
+			line = line.strip()
+			tokens = line.split('\t')
+			if len(tokens) > 1:
+				name = re.sub('\(.*\)', '', tokens[1]).strip()
+				fbsub2name[tokens[0]] = name
+		for line in tqdm(linecache.getlines('./dicts/entity_2.txt')):
+			line = line.strip()
+			tokens = line.split('\t')
+			if len(tokens) > 1:
+				name = tokens[1]
+				fbsub2name[tokens[0]] = name
 		with open('./dicts/word2id.pickle', 'rb') as f:
 			word2id = pickle.load(f)
 		with open('./dicts/kb2id.pickle', 'rb') as f:
@@ -103,14 +118,14 @@ class testDataset(object):
 			tokens = tokens[0:3]
 			triple = []
 			for tok in tokens:
-				split_tok = tok.split('/')
-				strip_tok = split_tok[1:]
-				new_tok = '/' + '/'.join(strip_tok)
+				# split_tok = tok.split('/')
+				# strip_tok = split_tok[1:]
+				# new_tok = '/' + '/'.join(strip_tok)
 				try:
-					kb_id = kb2id[new_tok]
+					kb_id = kb2id[tok]
 					triple.append(kb_id)
 				except:
-					print('%s not exist' % new_tok)
+					print('%s not exist' % tok)
 
 			words_ = re.split('[^0-9a-zA-Z<>]+', question)
 			words = []
@@ -123,6 +138,9 @@ class testDataset(object):
 					except:
 						print('%s not exist' % word_lower)
 			words_ = []
+			if triples[0] not in fbsub2name:
+				continue
+			subname = fbsub2name[triples[0]]
 			triples.append(triple)
 			questions.append(words)
 			subnames.append(subname)
