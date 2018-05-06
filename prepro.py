@@ -27,14 +27,16 @@ def build_word_list():
 	with open('./dicts/wordlist.json', 'w') as f:
 		json.dump(list(wordset), f)
 
-def build_kb_list():
+def build_kb_list(
+		files=('./sq/annotated_fb_data_test.txt',
+			   './sq/annotated_fb_data_train.txt',
+			   './sq/annotated_fb_data_valid.txt'),
+		outfiles=('./dicts/entlist.json', './dicts/rellist.json')
+):
 	entset = set()
 	relset = set()
-	files = ['./sq/annotated_fb_data_test.txt',
-			 './sq/annotated_fb_data_train.txt',
-			 './sq/annotated_fb_data_valid.txt']
 	for infile in files:
-		for line in linecache.getlines(infile):
+		for line in tqdm(linecache.getlines(infile)):
 			line = line.strip('\n')
 			tokens = line.split('\t')
 			tokens = tokens[1:4]
@@ -50,9 +52,9 @@ def build_kb_list():
 				relset.add(rel)
 	print(len(entset))
 	print(len(relset))
-	with open('./dicts/entlist.json', 'w') as f:
+	with open(outfiles[0], 'w') as f:
 		json.dump(list(entset), f)
-	with open('./dicts/rellist.json', 'w') as f:
+	with open(outfiles[1], 'w') as f:
 		json.dump(list(relset), f)
 
 def build_word_dict_emb():
@@ -103,10 +105,14 @@ def build_word_dict_emb():
 	with open('./dicts/not_pretrained.json', 'w') as f:
 		json.dump(not_pretrained, f)
 
-def build_kb_dict_emb():
-	with open('./dicts/entlist.json', 'r') as f:
+def build_kb_dict_emb(
+		listfiles = ('./dicts/entlist.json', './dicts/rellist.json'),
+		idfile = './dicts/kb2id.pickle',
+		embfile = './dicts/kbemb.pickle'
+):
+	with open(listfiles[0], 'r') as f:
 		entlist = json.load(f)
-	with open('./dicts/rellist.json', 'r') as f:
+	with open(listfiles[1], 'r') as f:
 		rellist = json.load(f)
 	kb2id = {}
 	dim = 100
@@ -121,11 +127,11 @@ def build_kb_dict_emb():
 	emb = np.zeros([kb_size, dim])
 
 	emb_whole = []
-	for line in tqdm(linecache.getlines('/home/laiyx/data/TransE/FB5M/entity2vecfb5m.vec')):
+	for line in tqdm(linecache.getlines('/home/zhangms/fb5m/entity2vecfb5m.vec')):
 		line = line.strip()
 		tokens = line.split()
 		emb_whole.append([float(x) for x in tokens])
-	for line in tqdm(linecache.getlines('/home/laiyx/data/TransE/FB5M/entity2id.txt')):
+	for line in tqdm(linecache.getlines('/home/zhangms/fb5m/entity2id.txt')):
 		line = line.strip()
 		tokens = line.split()
 		if tokens[0] in kb2id:
@@ -135,11 +141,11 @@ def build_kb_dict_emb():
 	print(pretrained, len(entlist))
 
 	emb_whole = []
-	for line in tqdm(linecache.getlines('/home/laiyx/data/TransE/FB5M/relation2vecfb5m.vec')):
+	for line in tqdm(linecache.getlines('/home/zhangms/fb5m/relation2vecfb5m.vec')):
 		line = line.strip()
 		tokens = line.split()
 		emb_whole.append([float(x) for x in tokens])
-	for line in tqdm(linecache.getlines('/home/laiyx/data/TransE/FB5M/relation2id.txt')):
+	for line in tqdm(linecache.getlines('/home/zhangms/fb5m/relation2id.txt')):
 		line = line.strip()
 		tokens = line.split()
 		if tokens[0] in kb2id:
@@ -148,13 +154,20 @@ def build_kb_dict_emb():
 			initialized[tokens[0]] = True
 	print(pretrained, kb_size)
 
-	with open('./dicts/kbemb.pickle', 'wb') as f:
+	with open(embfile, 'wb') as f:
 		pickle.dump(emb, f)
-	with open('./dicts/kb2id.pickle', 'wb') as f:
+	with open(idfile, 'wb') as f:
 		pickle.dump(kb2id, f)
 
 if __name__ == '__main__':
-	# build_kb_list()
-	# build_kb_dict_emb()
-	build_word_list()
-	build_word_dict_emb()
+	build_kb_list(
+		files=('./sq/annotated_fb_data_test.txt',
+			'./sq/annotated_fb_data_train.txt',
+			'./sq/annotated_fb_data_valid.txt',
+			'./sq/newdata.txt'),
+		outfiles=('./dicts/entlist_1.json', './dicts/rellist_1.json'))
+	build_kb_dict_emb(listfiles = ('./dicts/entlist_1.json', './dicts/rellist_1.json'),
+		idfile = './dicts/kb2id_1.pickle',
+		embfile = './dicts/kbemb_1.pickle')
+	# build_word_list()
+	# build_word_dict_emb()

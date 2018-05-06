@@ -263,7 +263,7 @@ class Model(object):
 					output_softmax = tf.nn.softmax(output, dim=1)
 
 
-	def decode_test_model(self, sess, test_dset, niter, wordlist, kblist, saver):
+	def decode_test_model(self, sess, test_dset, niter, wordlist, kblist, saver, dir = './output'):
 		'''
 		greedy search
 		'''
@@ -275,7 +275,7 @@ class Model(object):
 		bleu2 = 0.0
 		bleu3 = 0.0
 		bleu4 = 0.0
-		outf = open('./output/output' + str(niter) + '.txt', 'w')
+		outf = open(dir + '/output' + str(niter) + '.txt', 'w')
 		for bi in tqdm(range(num_batch)):
 			mini_batch = test_dset.get_mini_batch(self.batch)
 			if mini_batch == None:

@@ -9,7 +9,7 @@ import json
 import os
 from model import Model
 
-def load():
+def load(modelid):
 	os.environ["CUDA_VISIBLE_DEVICES"] = '0'
 	logger = logging.getLogger()
 	logger.setLevel(logging.INFO)
@@ -52,8 +52,8 @@ def load():
 		model = Model(config, word_emb_mat=wordemb, kb_emb_mat=kbemb)
 	saver = tf.train.Saver()
 	with tf.Session() as sess:
-		saver.restore(sess, './savemodel/model46.pkl')
-		out_idx = model.decode(sess,valid_dset)
+		saver.restore(sess, './savemodel/model' + str(modelid) + '.pkl')
+		out_idx = model.decode(sess, valid_dset)
 		sentences = []
 		for s in out_idx:
 			words = []

@@ -1,7 +1,7 @@
 import linecache
 import re
-file = '../sq/annotated_fb_data_valid.txt_with_single_placeholder'
-with open('../sq/valid_questions.txt', 'w') as outf:
+file = '../sq/annotated_fb_data_test.txt_with_single_placeholder'
+with open('../sq/test_questions.txt', 'w') as outf:
 	for line in linecache.getlines(file):
 		tokens = line.strip().split('\t')
 		sub = tokens[0]

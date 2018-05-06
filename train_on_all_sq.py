@@ -45,7 +45,7 @@ def minitrain(config, train_file, valid_file, wordlist, kblist):
 		loss_iter /= num_batch
 		logging.info('iter %d, train loss: %f' % (ei, loss_iter))
 		# model.valid_model(sess, valid_dset, ei, saver)
-		mtest.decode_test_model(sess, valid_dset, ei, wordlist, kblist, saver, dir='./output_test')
+		# mtest.decode_test_model(sess, valid_dset, ei, wordlist, kblist, saver, dir='./output_test')
 		# model.decode_test_model(sess, valid_dset, ei, wordlist, kblist, saver)
 
 if __name__ == '__main__':
@@ -90,6 +90,6 @@ if __name__ == '__main__':
 	flags.DEFINE_float('max_grad_norm', 0.1, "")
 	flags.DEFINE_float('lr', 0.00025, "")
 	config = flags.FLAGS
-	train_file = './sq/annotated_fb_data_train.txt'
+	train_file = './sq/sq.txt'
 	valid_file = './sq/annotated_fb_data_test.txt'
 	minitrain(config, train_file, valid_file, wordlist, kblist)
