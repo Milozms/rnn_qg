@@ -4,6 +4,11 @@ import linecache
 import re
 from tqdm import tqdm
 
+def ent_format_dot(ent):
+	split_ent = ent.split('/')
+	split_ent = split_ent[1:]
+	return '.'.join(split_ent)
+
 def pad_sequence(seq, maxlen):
 	if len(seq)>maxlen:
 		return seq[:maxlen]
@@ -103,6 +108,7 @@ class testDataset(object):
 			if len(tokens) > 1:
 				name = tokens[1]
 				fbsub2name[tokens[0]] = name
+
 		with open('./dicts/word2id.pickle', 'rb') as f:
 			word2id = pickle.load(f)
 		with open('./dicts/kb2id.pickle', 'rb') as f:
@@ -131,16 +137,13 @@ class testDataset(object):
 			words = []
 			for word in words_:
 				if word != '':
-					word_lower = word.lower()
-					try:
-						word_id = word2id[word_lower]
-						words.append(word_id)
-					except:
-						print('%s not exist' % word_lower)
+					words.append(word.lower())
 			words_ = []
-			if triples[0] not in fbsub2name:
+			try:
+				subname = fbsub2name[ent_format_dot(tokens[0])]
+			except:
+				print('No name for entity %s' % ent_format_dot(tokens[0]))
 				continue
-			subname = fbsub2name[triples[0]]
 			triples.append(triple)
 			questions.append(words)
 			subnames.append(subname)
@@ -170,10 +173,12 @@ class testDataset(object):
 		triples = []
 		questions = []
 		qlen = []
+		subnames = []
 		for ins in batch:
 			triples.append(ins[0])
 			questions.append(ins[1])
 			qlen.append(ins[2])
-		return triples, questions, qlen
+			subnames.append(ins[3])
+		return triples, questions, qlen, subnames
 
 
