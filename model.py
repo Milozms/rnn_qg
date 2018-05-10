@@ -310,6 +310,51 @@ class Model(object):
 			saver.save(sess, './savemodel_train_on_all_sq/model' + str(niter) + '.pkl')
 		outf.close()
 
+	def decode_test_with_full_questions(self, sess, test_dset, niter, wordlist, kblist, saver, dir = './output'):
+		'''
+		greedy search
+		'''
+		test_dset.current_index = 0
+		num_batch = int(math.ceil(test_dset.datasize / self.batch))
+		out_idx = []
+		triples_idx = []
+		bleu1 = 0.0
+		bleu2 = 0.0
+		bleu3 = 0.0
+		bleu4 = 0.0
+		outf = open(dir + '/output' + str(niter) + '.txt', 'w')
+		for bi in tqdm(range(num_batch)):
+			mini_batch = test_dset.get_mini_batch(self.batch)
+			if mini_batch == None:
+				break
+			triples, questions, qlen, subnames = mini_batch
+			feed_dict = {}
+			feed_dict[self.triple] = triples
+			# feed_dict[self.question] = questions
+			feed_dict[self.qlen] = qlen
+			feed_dict[self.keep_prob] = 1.0
+			out_idx_cur = sess.run(self.out_test, feed_dict=feed_dict)
+			out_idx_cur = np.array(out_idx_cur, dtype=np.int32)
+			out_idx_lst = [list(x) for x in out_idx_cur]
+			out_idx += out_idx_lst
+			triples_idx += triples
+			for i in range(len(questions)):
+				output_restore = restore_placeholder(out_idx_cur[i], wordlist, subnames[i])
+				output_question = ' '.join(output_restore)
+				outf.write(output_question + '\n')
+				# bleu1 += bleu_val(question_restore, output_restore, 1)
+				# bleu2 += bleu_val(question_restore, output_restore, 2)
+				# bleu3 += bleu_val(question_restore, output_restore, 3)
+				bleu4 += bleu_val(questions[i], output_restore, 4)
+		# bleu1 /= test_dset.datasize
+		# bleu2 /= test_dset.datasize
+		# bleu3 /= test_dset.datasize
+		bleu4 /= test_dset.datasize
+		logging.info('iter %d, bleu4 = %f' % (niter, bleu4))
+		if bleu4 > self.maxbleu:
+			self.maxbleu = bleu4
+			saver.save(sess, './savemodel_train_on_all_sq/model' + str(niter) + '.pkl')
+		outf.close()
 
 	def valid_model(self, sess, valid_dset, niter, saver):
 		valid_dset.current_index = 0

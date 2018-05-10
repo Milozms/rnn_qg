@@ -33,22 +33,37 @@ def build_kb_list(
 			   './sq/annotated_fb_data_valid.txt'),
 		outfiles=('./dicts/entlist.json', './dicts/rellist.json')
 ):
+	exist_entities = set()
+	exist_relations = set()
+	for line in tqdm(linecache.getlines('/home/zhangms/fb5m/entity2id.txt')):
+		line = line.strip()
+		tokens = line.split()
+		exist_entities.add(tokens[0])
+	for line in tqdm(linecache.getlines('/home/zhangms/fb5m/relation2id.txt')):
+		line = line.strip()
+		tokens = line.split()
+		exist_relations.add(tokens[0])
+
 	entset = set()
 	relset = set()
 	for infile in files:
 		for line in tqdm(linecache.getlines(infile)):
 			line = line.strip('\n')
 			tokens = line.split('\t')
-			tokens = tokens[1:4]
+			tokens = tokens[0:3]
 			triple = []
 			for tok in tokens:
-				split_tok = tok.split('/')
-				strip_tok = split_tok[1:]
-				new_tok = '/' + '/'.join(strip_tok)
-				triple.append(new_tok)
+				# split_tok = tok.split('/')
+				# strip_tok = split_tok[1:]
+				# new_tok = '/' + '/'.join(strip_tok)
+				triple.append(tok)
 			for ent in [triple[0], triple[2]]:
+				if ent not in exist_entities:
+					print(ent)
 				entset.add(ent)
 			for rel in [triple[1]]:
+				if rel not in exist_relations:
+					print(rel)
 				relset.add(rel)
 	print(len(entset))
 	print(len(relset))
@@ -123,7 +138,7 @@ def build_kb_dict_emb(
 	for i, rel in enumerate(rellist):
 		kb2id[rel] = i + len(entlist)
 	initialized = {}
-	pretrained = 0
+	ent_pretrained = 0
 	emb = np.zeros([kb_size, dim])
 
 	emb_whole = []
@@ -136,10 +151,11 @@ def build_kb_dict_emb(
 		tokens = line.split()
 		if tokens[0] in kb2id:
 			emb[kb2id[tokens[0]]] = np.array(emb_whole[int(tokens[1])])
-			pretrained += 1
+			ent_pretrained += 1
 			initialized[tokens[0]] = True
-	print('%d entities pretrained, %d entities total' % (pretrained, len(entlist)))
+	print('%d entities pretrained, %d entities total' % (ent_pretrained, len(entlist)))
 
+	rel_pretrained = 0
 	emb_whole = []
 	for line in tqdm(linecache.getlines('/home/zhangms/fb5m/relation2vecfb5m.vec')):
 		line = line.strip()
@@ -150,14 +166,14 @@ def build_kb_dict_emb(
 		tokens = line.split()
 		if tokens[0] in kb2id:
 			emb[kb2id[tokens[0]]] = np.array(emb_whole[int(tokens[1])])
-			pretrained += 1
+			rel_pretrained += 1
 			initialized[tokens[0]] = True
-	print('%d relations pretrained, %d relations total' % (pretrained, kb_size))
+	print('%d relations pretrained, %d relations total' % (rel_pretrained, len(rellist)))
 
 	with open(embfile, 'wb') as f:
-		pickle.dump(emb, f)
+		pickle.dump(emb, f, protocol=4)
 	with open(idfile, 'wb') as f:
-		pickle.dump(kb2id, f)
+		pickle.dump(kb2id, f, protocol=4)
 
 def sq_triple_format(infile):
 	# infile = 'train', 'test', 'valid'
@@ -177,14 +193,14 @@ def sq_triple_format(infile):
 
 def newdata_kb():
 	build_kb_list(
-		files=('./sq/annotated_fb_data_test.txt',
-			   './sq/annotated_fb_data_train.txt',
-			   './sq/annotated_fb_data_valid.txt',
+		files=('./sq/sqtest.txt',
+			   './sq/sqtrain.txt',
+			   './sq/sqvalid.txt',
 			   './sq/newdata.txt'),
-		outfiles=('./dicts/entlist_1.json', './dicts/rellist_1.json'))
-	build_kb_dict_emb(listfiles=('./dicts/entlist_1.json', './dicts/rellist_1.json'),
-					  idfile='./dicts/kb2id_1.pickle',
-					  embfile='./dicts/kbemb_1.pickle')
+		outfiles=('./dicts/entlist.json', './dicts/rellist.json'))
+	build_kb_dict_emb(listfiles=('./dicts/entlist.json', './dicts/rellist.json'),
+					  idfile='./dicts/kb2id.pickle',
+					  embfile='./dicts/kbemb.pickle')
 
 if __name__ == '__main__':
 	newdata_kb()

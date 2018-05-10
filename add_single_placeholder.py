@@ -145,6 +145,7 @@ def add_single_placeholder():
 						words.append(word.lower())
 				words_ = []
 				question = ' '.join(words)
+				question = ' '+question+' '
 				words_ = re.split('[^0-9a-zA-Z<>]+', subname)
 				words = []
 				for word in words_:
@@ -152,6 +153,7 @@ def add_single_placeholder():
 						words.append(word.lower())
 				words_ = []
 				subname = ' '.join(words)
+				subname = ' '+subname+' '
 				# in case that subname is part of other word !!!
 				sub_idx = question.find(subname)
 				if sub_idx == -1:

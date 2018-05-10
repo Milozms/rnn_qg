@@ -16,6 +16,7 @@ def minitrain(config, train_file, test_file, wordlist, kblist):
 	with tf.variable_scope('model'):
 		model = Model(config, word_emb_mat=wordemb, kb_emb_mat=kbemb)
 	config.is_train = False
+	config.batch = 200
 	with tf.variable_scope('model', reuse=True):
 		mtest = Model(config, word_emb_mat=wordemb, kb_emb_mat=kbemb)
 
@@ -45,10 +46,10 @@ def minitrain(config, train_file, test_file, wordlist, kblist):
 		loss_iter /= num_batch
 		logging.info('iter %d, train loss: %f' % (ei, loss_iter))
 		# model.valid_model(sess, valid_dset, ei, saver)
-		mtest.decode_test_model(sess, test_dset, ei, wordlist, kblist, saver, dir='./output_newdata')
+	mtest.decode_test_with_full_questions(sess, test_dset, ei, wordlist, kblist, saver, dir='./output_newdata')
 
 if __name__ == '__main__':
-	os.environ["CUDA_VISIBLE_DEVICES"] = '0'
+	os.environ["CUDA_VISIBLE_DEVICES"] = '1'
 	logger = logging.getLogger()
 	logger.setLevel(logging.INFO)
 	handler = logging.FileHandler("./log/log.txt", mode='w')
@@ -84,7 +85,7 @@ if __name__ == '__main__':
 	flags.DEFINE_integer('kb_emb_dim', 100, "")
 	flags.DEFINE_integer('maxlen', 35, "")
 	flags.DEFINE_integer('batch', 100, "")
-	flags.DEFINE_integer('epoch_num', 15, "")
+	flags.DEFINE_integer('epoch_num', 8, "")
 	flags.DEFINE_boolean('is_train', True, "")
 	flags.DEFINE_float('max_grad_norm', 0.1, "")
 	flags.DEFINE_float('lr', 0.00025, "")
